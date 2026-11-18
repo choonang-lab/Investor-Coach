@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Investor Coach</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Investor">
+<meta name="theme-color" content="#284B7A">
+<style>
+:root{--bg:#F3F4F6;--card:#FFFFFF;--ink:#1B2230;--mute:#626B7A;--line:#E0E3E9;--accent:#284B7A;--accent-soft:#E3EAF4;--on-accent:#FFFFFF;--good:#2E7D4F;--good-soft:#E0F1E6;--bad:#B4472F;--bad-soft:#F8E4DD;--warn:#8F6300;--warn-soft:#FAEFD2;--chip:#ECEEF2}
+@media (prefers-color-scheme:dark){:root{--bg:#11141A;--card:#1A1F27;--ink:#E7EAF0;--mute:#9AA2B0;--line:#2A313C;--accent:#8EB4E8;--accent-soft:#1E2B3D;--on-accent:#0C1522;--good:#6FC892;--good-soft:#1A3023;--bad:#EA8D76;--bad-soft:#3A211B;--warn:#E3B755;--warn-soft:#332912;--chip:#252B35}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(env(safe-area-inset-top) + 10px) 16px 8px;display:flex;justify-content:space-between;align-items:baseline;gap:12px;border-bottom:1px solid var(--line)}
+.brand{font-weight:700;font-size:18px}
+.wk{font-size:13px;color:var(--mute);text-align:right}
+main{max-width:640px;margin:0 auto;padding:12px 16px calc(84px + env(safe-area-inset-bottom))}
+nav#tabbar{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}
+nav#tabbar button{flex:1;background:none;border:0;padding:8px 0 6px;color:var(--mute);font:inherit;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px;position:relative}
+nav#tabbar button.on{color:var(--accent);font-weight:600}
+nav#tabbar .badge{position:absolute;top:4px;left:calc(50% + 8px);background:var(--bad);color:var(--on-accent);border-radius:999px;font-size:10px;font-weight:700;padding:0 5px;line-height:16px}
+nav svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 12px}
+.card.cool{border-color:var(--warn);background:var(--warn-soft)}
+.ch{font-weight:650;font-size:16px;margin:0 0 6px;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.kicker{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--accent);font-weight:700}
+.h2{font-size:20px;font-weight:700;margin:2px 0 4px}
+.mute{color:var(--mute)}
+.small{font-size:14px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.lbl{flex:1;min-width:0}
+.seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{flex:1;background:var(--card);border:0;border-left:1px solid var(--line);padding:9px 2px;font:inherit;font-size:14px;color:var(--ink);min-width:0;min-height:42px}
+.seg button:first-child{border-left:0}
+.seg button.on{background:var(--accent);color:var(--on-accent)}
+.typegrid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}
+.typegrid button{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:9px 4px;font:inherit;font-size:14px;color:var(--ink)}
+.typegrid button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chipb{background:var(--bg);border:1px solid var(--line);border-radius:999px;padding:6px 11px;font:inherit;font-size:13px;color:var(--ink)}
+.chipb.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent);font-weight:600}
+.chipb.on.hot{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
+input,textarea,select{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+input[type=range]{width:100%;padding:0;border:0;background:none;accent-color:var(--accent)}
+input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent);vertical-align:middle}
+textarea{width:100%;min-height:60px;resize:vertical;display:block}
+select{width:100%}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--accent);color:var(--on-accent);border:0;border-radius:10px;padding:10px 14px;font:inherit;font-weight:600;font-size:15px}
+.btn.ghost{background:var(--accent-soft);color:var(--accent)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.big{flex:1;padding:13px}
+.link{background:none;border:0;padding:0;font:inherit;color:var(--accent);font-weight:600;text-decoration:underline}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600;background:var(--chip);color:var(--mute);white-space:nowrap}
+.chip.good{background:var(--good-soft);color:var(--good)}
+.chip.bad{background:var(--bad-soft);color:var(--bad)}
+.chip.warn{background:var(--warn-soft);color:var(--warn)}
+.chip.info{background:var(--accent-soft);color:var(--accent)}
+.flags{display:flex;flex-wrap:wrap;gap:4px;margin:2px 0 6px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid var(--line);cursor:pointer}
+.box{width:22px;height:22px;border:2px solid var(--mute);border-radius:6px;flex-shrink:0;margin-top:1px;display:grid;place-items:center}
+.check.done .box{background:var(--good);border-color:var(--good)}
+.check.done .box::after{content:"";width:6px;height:11px;border:solid var(--on-accent);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.check.done .ct{color:var(--mute)}
+.when{font-size:12px;color:var(--mute)}
+.note{border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:15px}
+.note.good{background:var(--good-soft)}
+.note.warn{background:var(--warn-soft)}
+.note.bad{background:var(--bad-soft)}
+.note.info{background:var(--accent-soft)}
+.note ol{margin:6px 0 0;padding-left:20px}
+.note li{margin:3px 0}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.stat{background:var(--bg);border-radius:10px;padding:10px}
+.stat .v{font-size:19px;font-weight:700}
+.stat .v.bad{color:var(--bad)}
+.stat .k{font-size:12px;color:var(--mute)}
+.tw{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line);align-items:flex-start}
+.tw:first-of-type{border-top:0}
+.dot{width:10px;height:10px;border-radius:50%;margin-top:6px;flex-shrink:0;background:var(--accent)}
+.dot.warn{background:var(--warn)}
+.dot.bad{background:var(--bad)}
+.dot.good{background:var(--good)}
+.rt{font-size:19px;font-weight:650;line-height:1.35;margin:4px 0 6px}
+.quote{border-left:3px solid var(--line);padding:2px 0 2px 10px;margin:8px 0;font-size:15px}
+.kill{background:var(--bad-soft);border-radius:8px;padding:6px 10px;margin:6px 0;font-size:14px}
+.kill b{color:var(--bad)}
+.matrix{display:grid;grid-template-columns:auto 1fr 1fr;gap:6px;font-size:13px;align-items:stretch}
+.matrix .h{color:var(--mute);font-size:12px;text-align:center;align-self:end}
+.matrix .rh{color:var(--mute);font-size:12px;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center}
+.matrix .m{border-radius:10px;padding:8px;text-align:center}
+.matrix .m b{display:block;font-size:22px}
+.m.g{background:var(--good-soft)}.m.l{background:var(--accent-soft)}.m.d{background:var(--warn-soft)}.m.x{background:var(--bad-soft)}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+.tbl td,.tbl th{padding:7px 4px;border-top:1px solid var(--line);text-align:left}
+.tbl th{font-size:12px;color:var(--mute);font-weight:600;border-top:0}
+.tbl td.n{text-align:right;white-space:nowrap}
+.pos{color:var(--good);font-weight:600}.neg{color:var(--bad);font-weight:600}
+svg.chart{width:100%;height:auto;display:block}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .lab{fill:var(--mute);font-size:10px}
+.chart .tk{fill:var(--ink);font-size:10px;font-weight:600}
+.chart .diag{stroke:var(--mute);stroke-width:1.2;stroke-dasharray:4 3}
+.chart .band{fill:var(--good-soft)}
+.chart .tgt{stroke:var(--good);stroke-width:1.5;stroke-dasharray:4 3}
+.chart .pt{fill:var(--accent)}
+.chart .pt.off{fill:var(--bad)}
+.chart .bar{fill:var(--accent)}
+.chart .bar.over{fill:var(--bad)}
+.chart .bud{stroke:var(--warn);stroke-width:1.5;stroke-dasharray:4 3}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--mute);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:middle;margin-right:4px}
+#toast{position:fixed;left:50%;bottom:calc(80px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9;max-width:90vw}
+#toast.show{opacity:1}
+.field{display:block;margin:10px 0}
+.field>span{display:block;font-size:13px;color:var(--mute);margin-bottom:4px}
+.field input:not([type=range]):not([type=checkbox]){width:100%}
+.build{font-size:12px;color:var(--mute);text-align:center;margin:16px 0}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+h3.sec{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);margin:18px 0 8px;font-weight:700}
+.q{font-weight:600;font-size:14px;margin:12px 0 6px}
+details>summary{list-style:none;cursor:pointer}
+details>summary::-webkit-details-marker{display:none}
+details.card>summary{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+summary.q{color:var(--accent)}
+.rrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-top:1px solid var(--line);font-size:14px}
+.lv{letter-spacing:2px;color:var(--accent);font-size:11px}
+.inline{display:flex;gap:8px;align-items:center;font-size:14px;margin:10px 0 4px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:14px;margin:8px 0}
+.kv dt{color:var(--mute)}
+.kv dd{margin:0}
+</style>
+</head>
+<body>
+<header><div class="brand">Investor Coach</div><div id="sub" class="wk"></div></header>
+<main id="main"></main>
+<nav id="tabbar"></nav>
+<div id="toast"></div>
+<script>
+const BUILD = 'v1';
+const KEY = 'ic_data';
+const GHKEY = 'ic_gh';
+const DIRTY = 'ic_dirty';
+const DRAFT = 'ic_draft';
+const DAY = 864e5;
+const CHECKS = [30, 90, 365];
+const LEITNER = [1, 3, 7, 14, 30];
+const $ = (s) => document.querySelector(s);
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const DOW = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/* ---------- Content: the four failure modes ---------- */
+const CATS = [
+  { id: 'analysis', t: 'Analysis', d: 'Getting the thesis right' },
+  { id: 'selling', t: 'Selling', d: 'Selling winners early, holding losers' },
+  { id: 'impulse', t: 'Impulse', d: 'Overtrading and acting on urges' },
+  { id: 'sizing', t: 'Sizing', d: 'Focus, conviction and position size' },
+  { id: 'mind', t: 'Mindset', d: 'Process over outcome' }
+];
+function catT(id) { const c = CATS.find((x) => x.id === id); return c ? c.t : id; }
+
+/* Rule ids are progress keys: never rename or reuse them. pre:1 = shown as a pre-flight check on Buy/Add. */
+const RULES = [
+  { id: 'a1', cat: 'analysis', pre: 1, t: 'Do I already own this? Check every holdings record before writing a single number.', why: 'The same arithmetic means "buy" to a newcomer and "sell" to a holder. A verdict in the wrong register is confident advice about the wrong decision.' },
+  { id: 'a2', cat: 'analysis', pre: 1, t: 'Down more than 40% from the high? Read every filing in the drawdown window, exhibits included.', why: 'Standstills, observer seats, credit amendments and share pledges sit in exhibits that no summary, release or call mentions.' },
+  { id: 'a3', cat: 'analysis', pre: 1, t: 'Check the date on every price and data point before scoring.', why: 'A stale quote is not a small error. Every verdict is an expected value from today’s price.' },
+  { id: 'a4', cat: 'analysis', pre: 1, t: 'Write the base rate before the story.', why: 'How often do situations like this work? Start there, then adjust for what is different. The story will always feel like the exception.' },
+  { id: 'a5', cat: 'analysis', pre: 1, t: 'State what the market believes, and in one sentence why it is wrong.', why: 'No variant view, no edge. Agreeing with the price is a reason to own an index fund.' },
+  { id: 'a6', cat: 'analysis', pre: 1, t: 'Pre-mortem: it is two years later and this lost half. Write the most likely reason.', why: 'Imagining the failure as already happened surfaces risks that optimism hides.' },
+  { id: 'a7', cat: 'analysis', t: 'Read the primary source. Summaries stop one layer above the load-bearing fact.', why: 'The cash flow statement, the licence terms, the exhibit: the fact that decides the case is rarely in the article.' },
+  { id: 'a8', cat: 'analysis', t: 'In-licensed is not owned. Who gets paid on every dollar of sales?', why: 'Royalties and milestones owed to a licensor come off the top. Read the licence section before applying any multiple.' },
+  { id: 'a9', cat: 'analysis', t: 'Read exclusivity dates from the annual report before valuing a product.', why: 'Patent life produces no news until it is challenged, so a wrong expiry date can sit unexamined for months.' },
+  { id: 'a10', cat: 'analysis', t: 'If my best case sits below the most bearish analyst’s base case, audit my market size first.', why: 'When everyone disagrees with you in one direction, the gap is usually an input, not insight. Bridge one input at a time.' },
+  { id: 'a11', cat: 'analysis', t: 'When a company stops reporting a metric I was tracking, assume the bad case.', why: 'A withdrawn number is information. Pre-commit to the adverse default so you cannot explain it away later.' },
+  { id: 'a12', cat: 'analysis', t: 'Work out an activist’s or insider’s cost basis before reading their buying as a signal.', why: 'Buying far below their own cost may be averaging down, not bottom-fishing. The inference can flip.' },
+  { id: 's1', cat: 'selling', t: 'Clean-slate test: if I held cash instead, would I buy this today, at this size?', why: 'If the answer is no, the only thing keeping the position is that you already own it.' },
+  { id: 's2', cat: 'selling', t: 'Sell when the thesis breaks, not when the price moves.', why: 'A price move is a reason to re-check the thesis, not a verdict on it. Re-read the kill criteria first.' },
+  { id: 's3', cat: 'selling', t: 'My purchase price means nothing to the market.', why: 'Anchoring on cost makes you hold losers to get back to even and sell winners to lock in a number.' },
+  { id: 's4', cat: 'selling', t: 'Reaching a price target is a reason to re-underwrite, not an automatic sale.', why: 'Re-value from today. If the business improved, the target moved too. Trim to size rather than sell out.' },
+  { id: 's5', cat: 'selling', t: 'Write the sell condition before the buy.', why: 'Kill criteria written while calm are the only ones you will honour in a drawdown.' },
+  { id: 's6', cat: 'selling', t: 'Kill criteria hit? Act within a week, or write down why the criteria were wrong.', why: 'The most expensive habit is moving the goalposts quietly.' },
+  { id: 's7', cat: 'selling', t: 'Trim in steps. Do not decide everything in one emotional moment.', why: 'Scaling out cuts the regret of being wrong in either direction, which makes it easier to act at all.' },
+  { id: 'i1', cat: 'impulse', t: 'Unplanned trade? Wait 24 hours.', why: 'If it is a good idea today it will still be one tomorrow. Most urges do not survive a night.' },
+  { id: 'i2', cat: 'impulse', t: 'If the main reason is that the price moved today, do not trade today.', why: 'A move is information to research, not an instruction to act.' },
+  { id: 'i3', cat: 'impulse', t: 'Boredom is not a thesis.', why: 'Activity feels like progress. Most of the return comes from a few decisions held for a long time.' },
+  { id: 'i4', cat: 'impulse', t: 'After a big loss or a big win, no new positions for 48 hours.', why: 'Losses breed revenge trades and wins breed overconfidence. Both feel like clarity at the time.' },
+  { id: 'i5', cat: 'impulse', t: 'Decide when markets are closed. During the session, only execute what was already decided.', why: 'Live prices pull you into reacting. Thinking happens best away from the screen.' },
+  { id: 'i6', cat: 'impulse', t: 'An urge resisted is a win. Log it.', why: 'What gets counted gets reinforced. Resisting is a skill that improves with repetition.' },
+  { id: 'z1', cat: 'sizing', t: 'Size to the downside, not the upside.', why: 'Ask what you lose if the kill case happens, and size so that loss is survivable and unremarkable.' },
+  { id: 'z2', cat: 'sizing', t: 'If I would not double it, is my conviction really high?', why: 'High conviction you would never act on is just familiarity.' },
+  { id: 'z3', cat: 'sizing', t: 'Fewer, bigger, better-understood bets. A new idea in means an old one out.', why: 'Every extra name dilutes research time. The idea cap is there to force the choice.' },
+  { id: 'z4', cat: 'sizing', t: 'Bigger than my own framework says? Trim toward size. It is not a debate.', why: 'The framework exists for the moments when you are attached. Overriding it should need a written reason.' },
+  { id: 'z5', cat: 'sizing', t: 'Conviction comes from work done, not time spent watching.', why: 'Score conviction from the variant view, the base rate and the downside, not from how long you have followed the name.' },
+  { id: 'z6', cat: 'sizing', t: 'High conviction and a tiny position? Size up or lower the score.', why: 'A mismatch between belief and size means one of the two is wrong.' },
+  { id: 'm1', cat: 'mind', t: 'Judge the decision, not the outcome.', why: 'Good decisions lose money sometimes and bad ones make money. Grade the process you could control.' },
+  { id: 'm2', cat: 'mind', t: 'Write it down before acting. Memory rewrites the reasons afterwards.', why: 'Hindsight makes every result feel obvious. The written record is the only honest teacher.' },
+  { id: 'm3', cat: 'mind', t: 'Being early and being wrong look the same for a while. My kill criteria tell me which.', why: 'Without them, every loser is just early.' },
+  { id: 'm4', cat: 'mind', t: 'Calibration beats confidence.', why: 'When you say 70%, it should happen about 7 times in 10. Most people are overconfident until they measure it.' }
+];
+
+const PROMPTS = [
+  'What did I want to do in the market today, and did I?',
+  'Which holding would I not buy today at its current size?',
+  'What would make me sell my largest position? Is any of it true yet?',
+  'Which idea on my list could I drop without losing anything?',
+  'Where did I feel certain today? What would a smart bear say?',
+  'What did I read today that changed a number, not just a feeling?',
+  'Is there a decision I am avoiding? Why?',
+  'Which position do I check most often, and what does that say?',
+  'What do I know about a holding that the price does not reflect?',
+  'If I could own only three of my names, which three?',
+  'Did I act today on a plan, or on a feeling?',
+  'What would I tell a friend who held my portfolio?',
+  'Which kill criteria are closest to firing?',
+  'What am I hoping for, rather than expecting?'
+];
+
+const TYPES = [
+  { id: 'buy', t: 'Buy', dir: 1, trade: true },
+  { id: 'add', t: 'Add', dir: 1, trade: true },
+  { id: 'hold', t: 'Hold', dir: 1 },
+  { id: 'trim', t: 'Trim', dir: -1, trade: true },
+  { id: 'sell', t: 'Sell', dir: -1, trade: true },
+  { id: 'pass', t: 'Pass', dir: -1 },
+  { id: 'watch', t: 'Watch', dir: 0 }
+];
+function T(id) { return TYPES.find((x) => x.id === id) || TYPES[0]; }
+const HELD = ['buy', 'add', 'hold', 'trim'];
+const FW = ['BUY', 'ADD', 'HOLD', 'TRIM', 'EXIT', 'PASS'];
+const FAM = { buy: 'up', add: 'up', hold: 'hold', trim: 'down', sell: 'down', pass: 'none', watch: 'none', BUY: 'up', ADD: 'up', HOLD: 'hold', TRIM: 'down', EXIT: 'down', PASS: 'none' };
+
+const EMO = [
+  { id: 'calm', t: 'Calm' }, { id: 'confident', t: 'Confident' },
+  { id: 'excited', t: 'Excited', hot: 1 }, { id: 'fomo', t: 'FOMO', hot: 1 }, { id: 'fear', t: 'Fearful', hot: 1 },
+  { id: 'frustrated', t: 'Frustrated', hot: 1 }, { id: 'bored', t: 'Bored', hot: 1 }, { id: 'tired', t: 'Tired', hot: 1 },
+  { id: 'revenge', t: 'Want to win it back', hot: 1 }
+];
+function isHot(list) { return (list || []).some((e) => { const x = EMO.find((m) => m.id === e); return x && x.hot; }); }
+function emoNames(list) { return (list || []).map((e) => { const x = EMO.find((m) => m.id === e); return x ? x.t : e; }).join(', '); }
+
+const SELLWHY = [
+  { id: 'broken', t: 'Thesis broken' }, { id: 'target', t: 'Reached fair value' }, { id: 'better', t: 'Better use of capital' },
+  { id: 'size', t: 'Too big for my conviction' }, { id: 'fear', t: 'Price is falling, I am scared', hot: 1 }, { id: 'cash', t: 'Need the cash' }, { id: 'tax', t: 'Tax' }
+];
+
+const TAGS = [
+  { id: 'missed-source', c: 'analysis', t: 'Missed a filing or primary source' }, { id: 'base-rate', c: 'analysis', t: 'Ignored the base rate' },
+  { id: 'bad-input', c: 'analysis', t: 'Wrong model input' }, { id: 'story', c: 'analysis', t: 'Bought the story' }, { id: 'stale', c: 'analysis', t: 'Used stale data' },
+  { id: 'sold-early', c: 'selling', t: 'Sold a winner too early' }, { id: 'held-loser', c: 'selling', t: 'Held past my kill criteria' },
+  { id: 'anchored', c: 'selling', t: 'Anchored on cost or an old price' }, { id: 'no-exit', c: 'selling', t: 'Had no exit plan' },
+  { id: 'unplanned', c: 'impulse', t: 'Unplanned trade' }, { id: 'chased', c: 'impulse', t: 'Chased a move' },
+  { id: 'hot', c: 'impulse', t: 'Decided in a hot state' }, { id: 'overtraded', c: 'impulse', t: 'Traded for activity' },
+  { id: 'oversized', c: 'sizing', t: 'Too big for the conviction' }, { id: 'undersized', c: 'sizing', t: 'Too small for the conviction' },
+  { id: 'too-many', c: 'sizing', t: 'Spread across too many ideas' }, { id: 'over-fw', c: 'sizing', t: 'Overrode my own framework' },
+  { id: 'luck', c: 'mind', t: 'Right for the wrong reason' }, { id: 'followed', c: 'good', t: 'Followed my rules' }, { id: 'variant-right', c: 'good', t: 'My variant view was right' }
+];
+
+const STATES = [
+  { id: 'calm', t: 'Calm' }, { id: 'steady', t: 'Steady' }, { id: 'restless', t: 'Restless', hot: 1 },
+  { id: 'anxious', t: 'Anxious', hot: 1 }, { id: 'euphoric', t: 'Euphoric', hot: 1 }
+];
+const URGES = [{ id: 'none', t: 'No urge' }, { id: 'resisted', t: 'Resisted one' }, { id: 'acted', t: 'Acted on one' }];
+
+/* ---------- Helpers ---------- */
+function pad(n) { return String(n).padStart(2, '0'); }
+function ds(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+function pd(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function addDays(s, n) { const d = pd(s); d.setDate(d.getDate() + n); return ds(d); }
+function diffDays(a, b) { return Math.round((pd(b) - pd(a)) / DAY); }
+function todayStr() { return ds(new Date()); }
+function nice(s) { const d = pd(s); return DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + (d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''); }
+function fmtTime(iso) { const d = new Date(iso); return DOW[d.getDay()] + ' ' + d.getDate() + ' ' + MON[d.getMonth()] + ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function monday(s) { const g = (pd(s).getDay() + 6) % 7; return addDays(s, -g); }
+function isNum(v) { return typeof v === 'number' && !isNaN(v) && isFinite(v); }
+function num(v) { if (v === null || v === undefined || v === '') return null; const n = parseFloat(v); return isNaN(n) ? null : n; }
+function avg(a) { return a.length ? a.reduce((x, y) => x + y, 0) / a.length : null; }
+function fmt(n, dp) { if (!isNum(n)) return '–'; const p = Math.pow(10, dp === undefined ? 1 : dp); return String(Math.round(n * p) / p); }
+function pct(n) { if (!isNum(n)) return '–'; return (n > 0 ? '+' : '') + fmt(n) + '%'; }
+function pctCls(n) { return !isNum(n) ? '' : n > 0 ? 'pos' : n < 0 ? 'neg' : ''; }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function hash(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0; return h; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove('show'), 2400); }
+function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
+/* ---------- State ---------- */
+function blank() {
+  return { v: 1, settings: { tradeBudget: 6, coolHours: 24, ideaCap: 10, maxPos: 15 },
+    decisions: {}, deleted: {}, days: {}, weeks: {}, cards: {}, myCards: {}, lastBackup: null, savedAt: null };
+}
+function fill(d, b) {
+  for (const k in b) {
+    if (d[k] === undefined) d[k] = b[k];
+    else if (b[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && d[k] && typeof d[k] === 'object') fill(d[k], b[k]);
+  }
+  return d;
+}
+function load() {
+  try { const r = localStorage.getItem(KEY); if (r) return fill(JSON.parse(r), blank()); } catch (e) {}
+  return blank();
+}
+let D = load();
+function persist() { try { localStorage.setItem(KEY, JSON.stringify(D)); } catch (e) { toast('Could not save on this device'); } }
+function save() { D.savedAt = new Date().toISOString(); persist(); markDirty(); }
+
+function decs() { return Object.values(D.decisions).sort((a, b) => (a.date === b.date ? (a.at < b.at ? 1 : -1) : (a.date < b.date ? 1 : -1))); }
+function dayRec(s, create) { if (!D.days[s]) { if (!create) return null; D.days[s] = {}; } return D.days[s]; }
+function latestByTicker() {
+  const m = {};
+  decs().slice().reverse().forEach((d) => { if (d.status !== 'done') return; m[d.tk] = d; });
+  return m;
+}
+function holdings() { return Object.values(latestByTicker()).filter((d) => HELD.includes(d.type)); }
+function watching() { return Object.values(latestByTicker()).filter((d) => d.type === 'watch'); }
+function target(conv) { return D.settings.maxPos * conv / 10; }
+function sizeFit(d) {
+  const s = num(d.size), c = num(d.conv); if (!isNum(s) || !isNum(c)) return '';
+  const t = target(c);
+  if (s > t * 1.5 && s - t > 1) return 'over';
+  if (s < t * 0.5 && t - s > 1) return 'under';
+  return 'ok';
+}
+function fwMismatch(d) { return !!(d.fw && FAM[d.fw] && FAM[d.type] && FAM[d.fw] !== FAM[d.type]); }
+function doneMonth(d) { return (d.doneAt ? ds(new Date(d.doneAt)) : d.date).slice(0, 7); }
+function tradesInMonth(mk) { return Object.values(D.decisions).filter((d) => d.status === 'done' && T(d.type).trade && doneMonth(d) === mk).length; }
+function urgesInMonth(mk) {
+  const dropped = Object.values(D.decisions).filter((d) => d.status === 'dropped' && (d.droppedAt ? ds(new Date(d.droppedAt)) : d.date).slice(0, 7) === mk).length;
+  const days = Object.keys(D.days).filter((s) => s.slice(0, 7) === mk && D.days[s].urge === 'resisted').length;
+  return dropped + days;
+}
+function checked(s) { const x = D.days[s]; return !!(x && (x.state || x.urge || (x.note || '').trim())); }
+function streak() { let s = todayStr(); if (!checked(s)) s = addDays(s, -1); let n = 0; while (checked(s)) { n++; s = addDays(s, -1); } return n; }
+
+/* ---------- Reviews and scoring ---------- */
+function dueList() {
+  const t = todayStr(), out = [];
+  decs().forEach((d) => {
+    if (d.status !== 'done' || d.type === 'watch') return;
+    CHECKS.forEach((n) => { const date = addDays(d.date, n); if (date <= t && !(d.cps && d.cps[n])) out.push({ d, n, date }); });
+  });
+  return out.sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+function latestCp(d) { const ks = Object.keys(d.cps || {}).map(Number).sort((a, b) => b - a); return ks.length ? d.cps[ks[0]] : null; }
+function edge(d, cp) {
+  if (!cp || !isNum(num(cp.px)) || !isNum(num(d.px)) || !num(d.px)) return null;
+  const dir = T(d.type).dir; if (!dir) return null;
+  return (num(cp.px) - num(d.px)) / num(d.px) * 100 * dir;
+}
+function thScore(th) { return th === 'yes' ? 1 : th === 'partly' ? 0.5 : th === 'no' ? 0 : null; }
+function scored() {
+  const out = [];
+  Object.values(D.decisions).forEach((d) => { if (d.status !== 'done') return; const cp = latestCp(d); if (!cp) return; out.push({ d, cp, e: edge(d, cp), th: thScore(cp.th) }); });
+  return out;
+}
+function catWeights() {
+  const w = {}; CATS.forEach((c) => { w[c.id] = 1; });
+  Object.values(D.decisions).forEach((d) => Object.values(d.cps || {}).forEach((cp) => (cp.tags || []).forEach((t) => {
+    const g = TAGS.find((x) => x.id === t); if (g && w[g.c] !== undefined) w[g.c]++;
+  })));
+  return w;
+}
+
+/* ---------- Rulebook (spaced repetition) ---------- */
+function allCards() {
+  const mine = Object.values(D.myCards).filter((c) => !c.deleted).map((c) => Object.assign({ mine: 1 }, c));
+  return RULES.concat(mine).filter((c) => !(D.cards[c.id] && D.cards[c.id].off));
+}
+function preCards() { return allCards().filter((c) => c.pre); }
+function boxOf(c) { return (D.cards[c.id] && D.cards[c.id].box) || 0; }
+function cardPool(s) {
+  const w = catWeights(), cards = allCards();
+  const due = cards.filter((c) => { const st = D.cards[c.id]; return !st || !st.due || st.due <= s; });
+  const pool = (due.length ? due : cards).slice();
+  pool.sort((a, b) => (boxOf(a) - boxOf(b)) || ((w[b.cat] || 1) - (w[a.cat] || 1)) || (hash(a.id + s) - hash(b.id + s)));
+  return pool;
+}
+function cardOfDay(s) {
+  const all = allCards(); if (!all.length) return null;
+  const dd = dayRec(s, true);
+  let c = dd.card && all.find((x) => x.id === dd.card);
+  if (!c) { c = cardPool(s)[0]; dd.card = c.id; persist(); }
+  return c;
+}
+function levelDots(c) { const b = boxOf(c); let s = ''; for (let i = 1; i <= 5; i++) s += i <= b ? '●' : '○'; return s; }
+
+/* ---------- Render ---------- */
+let view = 'today';
+let followToday = true;
+const RV = {};
+const ICONS = {
+  today: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  decide: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
+  book: '<svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>',
+  review: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  more: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'
+};
+function render() {
+  const t = todayStr(), mk = t.slice(0, 7);
+  $('#sub').innerHTML = nice(t) + ' · trades ' + tradesInMonth(mk) + '/' + D.settings.tradeBudget;
+  const due = dueList().length;
+  $('#tabbar').innerHTML = [['today', 'Today'], ['decide', 'Decide'], ['book', 'Book'], ['review', 'Review'], ['more', 'More']].map(([id, l]) =>
+    '<button class="' + (view === id ? 'on' : '') + '" data-act="tab" data-v="' + id + '">' + ICONS[id] + l + (id === 'review' && due ? '<span class="badge">' + due + '</span>' : '') + '</button>').join('');
+  $('#main').innerHTML = ({ today: vToday, decide: vDecide, book: vBook, review: vReview, more: vMore })[view]();
+}
+function seg(act, k, opts, val, extra) {
+  return '<div class="seg">' + opts.map((o) => '<button class="' + (val === o.id ? 'on' : '') + '" data-act="' + act + '" data-k="' + esc(k) + '" data-v="' + o.id + '"' + (extra || '') + '>' + esc(o.t) + '</button>').join('') + '</div>';
+}
+function stat(v, k, cls) { return '<div class="stat"><div class="v ' + (cls || '') + '">' + v + '</div><div class="k">' + esc(k) + '</div></div>'; }
+
+/* ---------- Today ---------- */
+function vToday() {
+  const s = todayStr(), mk = s.slice(0, 7), dd = D.days[s] || {}, all = decs();
+  let h = '';
+  if (!all.length) {
+    h += '<div class="note info"><b>Start here</b><ol>' +
+      '<li>Log each current holding as a <b>Hold</b>: one-line thesis, size, conviction and kill criteria.</li>' +
+      '<li>Back-fill a few past trades with their real dates and prices, so reviews come due now instead of in 30 days.</li>' +
+      '<li>Check in here each evening. Two minutes.</li>' +
+      '<li>Before any future trade, log it on <b>Decide</b> first.</li></ol></div>';
+  }
+  all.filter((d) => d.status === 'cooling').forEach((d) => {
+    const ready = new Date(d.coolUntil) <= new Date();
+    h += '<div class="card cool"><div class="kicker">Cooling off</div><div class="h2">' + T(d.type).t + ' ' + esc(d.tk) + '</div>' +
+      '<div class="quote">' + esc(d.thesis) + '</div>' +
+      (d.flags && d.flags.length ? '<div class="when">Flagged: ' + esc(d.flags.join(' ')) + '</div>' : '') +
+      '<div class="small" style="margin-top:6px">' + (ready ? '<b>Cool-off is over.</b> Is it still the right move?' : 'Cool-off ends <b>' + fmtTime(d.coolUntil) + '</b>.') + '</div>' +
+      '<div class="actions"><button class="btn' + (ready ? '' : ' ghost') + '" data-act="cdo" data-k="' + d.id + '">' + (ready ? 'I did it' : 'Do it anyway (logged)') + '</button>' +
+      '<button class="btn' + (ready ? ' ghost' : '') + '" data-act="cdrop" data-k="' + d.id + '">Drop it</button></div></div>';
+  });
+
+  const nudges = [];
+  const due = dueList();
+  if (due.length) nudges.push({ lvl: 'warn', t: plural(due.length, 'decision review') + ' due', act: 'tab', v: 'review', b: 'Review' });
+  const hs = holdings();
+  const gaps = hs.filter(fwMismatch);
+  if (gaps.length) nudges.push({ lvl: 'bad', t: 'Acting against your own framework: ' + gaps.map((d) => d.tk + ' (says ' + d.fw + ', you ' + T(d.type).t.toUpperCase() + ')').join(', '), act: 'tab', v: 'book', b: 'Book' });
+  const off = hs.filter((d) => sizeFit(d) === 'over' || sizeFit(d) === 'under');
+  if (off.length) nudges.push({ lvl: 'warn', t: 'Size does not match conviction: ' + off.map((d) => d.tk).join(', '), act: 'tab', v: 'book', b: 'Book' });
+  const stale = hs.filter((d) => diffDays(d.date, s) > 90);
+  if (stale.length) nudges.push({ lvl: 'info', t: 'Thesis not re-checked in 90+ days: ' + stale.map((d) => d.tk).join(', '), act: 'tab', v: 'book', b: 'Book' });
+  const n = hs.length + watching().length;
+  if (n > D.settings.ideaCap) nudges.push({ lvl: 'warn', t: n + ' names followed, cap is ' + D.settings.ideaCap + '. Something has to go.', act: 'tab', v: 'book', b: 'Book' });
+  const wd = pd(s).getDay();
+  if ((wd === 0 || wd === 6) && !(D.weeks[monday(s)] && D.weeks[monday(s)].at)) nudges.push({ lvl: 'info', t: 'Weekly reflection is open', act: 'tab', v: 'review', b: 'Reflect' });
+  if (nudges.length) {
+    h += '<div class="card"><div class="ch">Needs attention</div>' + nudges.map((x) =>
+      '<div class="tw"><div class="dot ' + x.lvl + '"></div><div class="lbl small">' + esc(x.t) + '</div><button class="btn sm ghost" data-act="' + x.act + '" data-v="' + x.v + '">' + x.b + '</button></div>').join('') + '</div>';
+  }
+
+  const st = STATES.find((x) => x.id === dd.state);
+  h += '<div class="card"><div class="ch">Daily check-in<span class="when">' + (streak() ? plural(streak(), 'day') + ' in a row' : '') + '</span></div>' +
+    '<div class="q">How do I feel about the market today?</div>' + seg('state', s, STATES, dd.state) +
+    (st && st.hot ? '<div class="note warn" style="margin:10px 0 0">Hot state. Rule for today: research only, no new trades.</div>' : '') +
+    '<div class="q">Any urge to trade?</div>' + seg('urge', s, URGES, dd.urge) +
+    '<div class="q">' + esc(PROMPTS[Math.abs(Math.floor(pd(s) / DAY)) % PROMPTS.length]) + '</div>' +
+    '<textarea data-act="dnote" data-k="' + s + '" placeholder="One or two lines">' + esc(dd.note || '') + '</textarea>' +
+    '<div class="when" id="dsaved"></div></div>';
+
+  const c = cardOfDay(s);
+  if (c) {
+    const done = (D.days[s] || {}).cardDone;
+    h += '<div class="card"><div class="ch"><span class="kicker">Rule of the day · ' + esc(catT(c.cat)) + '</span><span class="lv" title="How well it has stuck">' + levelDots(c) + '</span></div>' +
+      '<div class="rt">' + esc(c.t) + '</div><div class="small mute">' + esc(c.why || '') + '</div>' +
+      (done ? '<div class="actions"><span class="chip ' + (done === 'lived' ? 'good' : 'warn') + '">' + (done === 'lived' ? 'Lived it. Back in ' + plural(LEITNER[boxOf(c) - 1] || 1, 'day') : 'Coming back tomorrow') + '</span><button class="link small" data-act="another">Show another</button></div>'
+        : '<div class="actions"><button class="btn" data-act="lived" data-k="' + c.id + '">I live by this</button><button class="btn ghost" data-act="need" data-k="' + c.id + '">I need this more</button><button class="link small" data-act="another">Another</button></div>') + '</div>';
+  }
+
+  const used = tradesInMonth(mk);
+  h += '<h3 class="sec">This month</h3><div class="grid2">' +
+    stat(used + ' / ' + D.settings.tradeBudget, 'Trades used', used > D.settings.tradeBudget ? 'bad' : '') +
+    stat(urgesInMonth(mk), 'Urges resisted') +
+    stat(Object.values(D.decisions).filter((d) => d.override && doneMonth(d) === mk).length, 'Cool-offs overridden') +
+    stat(due.length, 'Reviews due') + '</div>';
+  h += '<div class="actions" style="margin-top:14px"><button class="btn big" data-act="tab" data-v="decide">Log a decision before acting</button></div>';
+  return h;
+}
+
+/* ---------- Decide ---------- */
+function newDraft(base) {
+  return Object.assign({ type: 'buy', date: todayStr(), tk: '', px: '', size: '', conv: 5, p: 60, up: '', dn: '', thesis: '', variant: '', kill: '',
+    premortem: '', why: [], planned: '', fw: '', fwWhy: '', clean: '', emo: [], pre: {} }, base || {});
+}
+function loadDraft() { try { const r = localStorage.getItem(DRAFT); if (r) return newDraft(JSON.parse(r)); } catch (e) {} return newDraft(); }
+function keepDraft() { try { localStorage.setItem(DRAFT, JSON.stringify(draft)); } catch (e) {} }
+let draft = loadDraft();
+
+const THESIS_LBL = {
+  buy: ['Thesis in one line', 'Why this, why now, at this price'], add: ['Why add now?', 'What changed since the last decision'],
+  hold: ['Why hold?', 'The thesis as it stands today'], trim: ['Why trim?', 'What changed, or why the size is wrong'],
+  sell: ['Why sell, in one line', 'Thesis broken? Better idea? Be honest'], pass: ['Why pass?', 'What would have to change for a yes'],
+  watch: ['What would make this a buy?', 'The price or event that turns it on']
+};
+function ftext(k, label, ph, multi) {
+  const v = esc(draft[k] || '');
+  return '<label class="field"><span>' + label + '</span>' + (multi ? '<textarea data-f="' + k + '" placeholder="' + esc(ph || '') + '">' + v + '</textarea>'
+    : '<input type="text" data-f="' + k + '" value="' + v + '" placeholder="' + esc(ph || '') + '">') + '</label>';
+}
+function fnum(k, label, ph) { return '<label class="field"><span>' + label + '</span><input type="number" inputmode="decimal" step="any" data-f="' + k + '" value="' + esc(draft[k]) + '" placeholder="' + esc(ph || '') + '"></label>'; }
+function frange(k, label, min, max, step, suf) {
+  return '<label class="field"><span>' + label + ': <b id="lv-' + k + '">' + esc(draft[k]) + suf + '</b></span><input type="range" min="' + min + '" max="' + max + '" step="' + step + '" data-f="' + k + '" data-suf="' + suf + '" value="' + esc(draft[k]) + '"></label>';
+}
+function fchips(k, opts, arr) {
+  return '<div class="chips">' + opts.map((o) => { const on = (arr || []).includes(o.id); return '<button class="chipb' + (on ? ' on' + (o.hot ? ' hot' : '') : '') + '" data-act="ftog" data-k="' + k + '" data-v="' + o.id + '">' + esc(o.t) + '</button>'; }).join('') + '</div>';
+}
+function vDecide() {
+  const F = draft, ty = F.type, tp = T(ty), on = (list) => list.includes(ty);
+  let h = '<div class="kicker">Before you act</div><div class="h2">Log a decision</div><div class="small mute" style="margin-bottom:12px">Write it before you do it. Memory rewrites the reasons afterwards.</div>';
+  h += '<div class="card"><div class="typegrid">' + TYPES.map((x) => '<button class="' + (ty === x.id ? 'on' : '') + '" data-act="fset" data-k="type" data-v="' + x.id + '">' + x.t + '</button>').join('') + '</div>' +
+    '<div class="grid2"><label class="field"><span>Ticker</span><input type="text" autocapitalize="characters" autocorrect="off" spellcheck="false" data-f="tk" value="' + esc(F.tk) + '"></label>' +
+    '<label class="field"><span>Date (back-fill allowed)</span><input type="date" max="' + todayStr() + '" data-f="date" value="' + esc(F.date) + '"></label></div>' +
+    '<div class="grid2">' + fnum('px', 'Price', '') + (on(HELD) ? fnum('size', 'Size after (% of portfolio)', '') : '') + '</div></div>';
+
+  h += '<div class="card"><div class="ch">The thinking</div>' + ftext('thesis', THESIS_LBL[ty][0], THESIS_LBL[ty][1], true) +
+    (on(['buy', 'add', 'watch']) ? ftext('variant', 'What does the market believe, and why is it wrong?', 'No variant view, no edge', true) : '') +
+    (on(['buy', 'add', 'hold', 'trim', 'watch']) ? ftext('kill', 'Kill criteria: what would prove me wrong?', 'Specific and checkable: a number, a date, an event', true) : '') +
+    (on(['sell', 'trim']) ? '<div class="q">Why sell?</div>' + fchips('why', SELLWHY, F.why) : '') +
+    (ty === 'hold' ? '<div class="q">Clean slate: holding cash instead, would I buy it today at this size?</div>' + seg('fset', 'clean', [{ id: 'yes', t: 'Yes' }, { id: 'no', t: 'No' }], F.clean) : '') +
+    (on(['buy', 'add']) ? '<details' + (F.premortem ? ' open' : '') + '><summary class="q">+ Pre-mortem (recommended)</summary>' + ftext('premortem', 'It is two years later and this lost half. What happened?', '', true) + '</details>' : '') + '</div>';
+
+  if (ty !== 'watch') {
+    h += '<div class="card"><div class="ch">Odds and size</div>' + frange('p', 'How likely am I to be right', 5, 95, 5, '%') +
+      (on(HELD) ? frange('conv', 'Conviction', 1, 10, 1, '/10') : '') +
+      (on(['buy', 'add']) ? '<div class="grid2">' + fnum('up', 'Upside if right (%)', 'e.g. 60') + fnum('dn', 'Downside if wrong (%)', 'e.g. 40') + '</div>' : '') + '</div>';
+  }
+
+  h += '<div class="card"><div class="ch">State of mind</div><div class="q">Right now I feel</div>' + fchips('emo', EMO, F.emo) +
+    (tp.trade ? '<div class="q">Was this trade in my plan before today?</div>' + seg('fset', 'planned', [{ id: 'yes', t: 'Yes, planned' }, { id: 'no', t: 'No, new' }], F.planned) : '') +
+    '<label class="field"><span>What does my framework or scorecard say?</span><select data-f="fw"><option value="">No framework verdict</option>' +
+    FW.map((x) => '<option' + (F.fw === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' +
+    (fwMismatch(F) ? ftext('fwWhy', 'Why am I overriding my own framework?', 'If you cannot write it, follow the framework', false) : '') + '</div>';
+
+  if (on(['buy', 'add'])) {
+    h += '<div class="card"><div class="ch">Pre-flight<span class="when">from your rulebook</span></div>' + preCards().map((c) =>
+      '<div class="check' + (F.pre[c.id] ? ' done' : '') + '" data-act="fpre" data-k="' + c.id + '"><div class="box"></div><div class="ct small">' + esc(c.t) + '</div></div>').join('') + '</div>';
+  }
+  h += '<div id="warn">' + warnHtml() + '</div>';
+  return h;
+}
+function activeNames() { const s = new Set(); holdings().concat(watching()).forEach((d) => s.add(d.tk)); return s; }
+function warnings(F) {
+  const w = [], tp = T(F.type), set = D.settings, tk = (F.tk || '').trim().toUpperCase();
+  const p = num(F.p), up = num(F.up), dn = num(F.dn), size = num(F.size), conv = num(F.conv);
+  if (tp.trade && F.planned === 'no') w.push({ lvl: 'warn', cool: 1, t: 'Unplanned trade.' });
+  if (tp.trade && isHot(F.emo)) w.push({ lvl: 'bad', cool: 1, t: 'Hot state: ' + emoNames(F.emo.filter((e) => (EMO.find((m) => m.id === e) || {}).hot)) + '.' });
+  const used = tradesInMonth(todayStr().slice(0, 7));
+  if (tp.trade && used >= set.tradeBudget) w.push({ lvl: 'bad', cool: 1, t: 'Trade budget used: ' + used + ' of ' + set.tradeBudget + ' this month.' });
+  if ((F.type === 'sell' || F.type === 'trim') && (F.why || []).includes('fear')) w.push({ lvl: 'bad', cool: 1, t: 'Selling out of fear. Re-read the kill criteria: has one actually fired?' });
+  if (F.type === 'hold' && F.clean === 'no') w.push({ lvl: 'bad', t: 'You would not buy it today at this size. That reads as a trim, not a hold.' });
+  if (fwMismatch(F)) w.push({ lvl: 'bad', t: 'Your framework says ' + F.fw + ' and you are logging ' + tp.t.toUpperCase() + '.' + (F.fwWhy ? '' : ' Write why, or follow it.') });
+  if (HELD.includes(F.type) && isNum(size)) {
+    if (size > set.maxPos) w.push({ lvl: 'bad', t: 'Size ' + fmt(size) + '% is above your ' + set.maxPos + '% position cap.' });
+    if (isNum(conv)) {
+      const t = target(conv), fit = sizeFit({ size, conv });
+      if (fit === 'over') w.push({ lvl: 'warn', t: 'Size ' + fmt(size) + '% is well above the ~' + fmt(t) + '% that conviction ' + conv + '/10 supports.' });
+      else if (fit === 'under') w.push({ lvl: 'warn', t: 'Conviction ' + conv + '/10 supports ~' + fmt(t) + '%, but this is ' + fmt(size) + '%. Size up, or lower the score.' });
+      else w.push({ lvl: 'good', t: 'Size fits conviction (~' + fmt(t) + '% for ' + conv + '/10).' });
+    }
+  }
+  if ((F.type === 'buy' || F.type === 'watch') && tk && !activeNames().has(tk)) {
+    const n = activeNames().size;
+    if (n >= set.ideaCap) w.push({ lvl: 'warn', t: 'You already follow ' + n + ' names (cap ' + set.ideaCap + '). Which one comes off the list?' });
+  }
+  if (['buy', 'add'].includes(F.type)) {
+    if (isNum(p) && isNum(up) && isNum(dn)) {
+      const ev = p / 100 * up - (1 - p / 100) * dn;
+      w.push({ lvl: ev > 0 ? 'good' : 'bad', t: 'Expected value: ' + pct(ev) + ' (' + p + '% × ' + fmt(up) + '% up, ' + (100 - p) + '% × ' + fmt(dn) + '% down).' });
+    }
+    const miss = preCards().filter((c) => !(F.pre || {})[c.id]).length;
+    if (miss) w.push({ lvl: 'warn', t: plural(miss, 'pre-flight check') + ' not ticked.' });
+  }
+  if (['buy', 'add', 'hold'].includes(F.type) && !(F.kill || '').trim()) w.push({ lvl: 'warn', t: 'No kill criteria. What would prove this wrong?' });
+  return w;
+}
+function willCool(w) { return T(draft.type).trade && draft.date >= todayStr() && w.some((x) => x.cool); }
+function warnHtml() {
+  const w = warnings(draft), cool = willCool(w);
+  return (w.length ? '<div class="card"><div class="ch">Checks</div>' + w.map((x) => '<div class="tw"><div class="dot ' + x.lvl + '"></div><div class="small">' + esc(x.t) + '</div></div>').join('') +
+    (cool ? '<div class="note warn" style="margin:10px 0 0">This goes into a ' + D.settings.coolHours + '-hour cool-off. If it is still right then, do it.</div>' : '') + '</div>' : '') +
+    '<div class="actions"><button class="btn big" data-act="submit">' + (cool ? 'Log and start cool-off' : 'Log decision') + '</button><button class="btn ghost" data-act="fclear">Clear</button></div>';
+}
+function submit() {
+  const F = draft, tk = (F.tk || '').trim().toUpperCase();
+  if (!tk) { toast('Add a ticker'); return; }
+  if (!(F.thesis || '').trim()) { toast('Write the one-line reason first'); return; }
+  if (F.date > todayStr()) { toast('Date is in the future'); return; }
+  const w = warnings(F), cool = willCool(w), now = new Date();
+  const d = { id: uid(), at: now.toISOString(), date: F.date || todayStr(), type: F.type, tk,
+    px: num(F.px), size: F.type === 'sell' ? 0 : num(F.size), conv: HELD.includes(F.type) ? num(F.conv) : null,
+    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(F.dn),
+    thesis: F.thesis.trim(), variant: (F.variant || '').trim(), kill: (F.kill || '').trim(), premortem: (F.premortem || '').trim(),
+    why: F.why || [], planned: F.planned || '', fw: F.fw || '', fwWhy: (F.fwWhy || '').trim(), clean: F.clean || '', emo: F.emo || [], pre: F.pre || {},
+    flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t),
+    status: cool ? 'cooling' : 'done', coolUntil: cool ? new Date(now.getTime() + D.settings.coolHours * 36e5).toISOString() : null, cps: {} };
+  if (!cool) d.doneAt = d.date === todayStr() ? now.toISOString() : null;
+  D.decisions[d.id] = d; save();
+  draft = newDraft(); localStorage.removeItem(DRAFT);
+  view = 'today'; render(); window.scrollTo(0, 0);
+  toast(cool ? 'Logged. Cool-off until ' + fmtTime(d.coolUntil) : 'Decision logged');
+}
+
+/* ---------- Book ---------- */
+function sizeChart(list) {
+  const pts = list.filter((d) => isNum(num(d.size)) && isNum(num(d.conv)));
+  if (!pts.length) return '<div class="small mute">Add size and conviction to holdings to see this.</div>';
+  const max = D.settings.maxPos, ymax = Math.max(max * 1.2, ...pts.map((d) => num(d.size) * 1.1));
+  const W = 320, H = 210, L = 30, R = 10, Tp = 10, B = 28;
+  const x = (c) => L + (c - 1) / 9 * (W - L - R), y = (v) => Tp + (1 - Math.min(v, ymax) / ymax) * (H - Tp - B);
+  let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Conviction versus position size">';
+  const step = ymax > 30 ? 10 : 5;
+  for (let v = 0; v <= ymax; v += step) g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="lab" x="' + (L - 4) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v + '%</text>';
+  g += '<polygon class="band" points="' + [[1, 0.5], [10, 0.5], [10, 1.5], [1, 1.5]].map(([c, f]) => x(c) + ',' + y(target(c) * f)).join(' ') + '"/>';
+  g += '<line class="tgt" x1="' + x(1) + '" y1="' + y(target(1)) + '" x2="' + x(10) + '" y2="' + y(target(10)) + '"/>';
+  for (let c = 1; c <= 10; c++) g += '<text class="lab" x="' + x(c) + '" y="' + (H - B + 14) + '" text-anchor="middle">' + c + '</text>';
+  g += '<text class="lab" x="' + ((L + W - R) / 2) + '" y="' + (H - 2) + '" text-anchor="middle">Conviction</text>';
+  pts.forEach((d) => {
+    const cx = x(num(d.conv)), cy = y(num(d.size)), off = sizeFit(d) !== 'ok';
+    g += '<circle class="pt' + (off ? ' off' : '') + '" cx="' + cx + '" cy="' + cy + '" r="5"/><text class="tk" x="' + (cx + 7) + '" y="' + (cy + 3) + '">' + esc(d.tk) + '</text>';
+  });
+  return g + '</svg><div class="legend"><span><i style="background:var(--good-soft);border:1px solid var(--good)"></i>Size that fits the conviction</span><span><i style="background:var(--bad)"></i>Mismatch</span></div>';
+}
+function holdCard(d) {
+  const s = todayStr(), age = diffDays(d.date, s), sz = num(d.size), fit = sizeFit(d);
+  const flags = [];
+  if (fwMismatch(d)) flags.push('<span class="chip bad">Framework says ' + esc(d.fw) + '</span>');
+  if (fit === 'over') flags.push('<span class="chip bad">Too big for ' + d.conv + '/10</span>');
+  if (fit === 'under') flags.push('<span class="chip warn">Small for ' + d.conv + '/10</span>');
+  if (d.clean === 'no') flags.push('<span class="chip bad">Fails clean-slate test</span>');
+  if (age > 90) flags.push('<span class="chip warn">Thesis ' + age + ' days old</span>');
+  if (!d.kill) flags.push('<span class="chip warn">No kill criteria</span>');
+  return '<div class="card"><div class="ch"><span>' + esc(d.tk) + ' <span class="chip">' + T(d.type).t + '</span></span><span class="small mute">' +
+    (isNum(sz) ? fmt(sz) + '%' : '') + (isNum(num(d.conv)) ? ' · ' + d.conv + '/10' : '') + '</span></div>' +
+    (flags.length ? '<div class="flags">' + flags.join('') + '</div>' : '') +
+    '<div class="small">' + esc(d.thesis) + '</div>' + (d.kill ? '<div class="kill"><b>Kill if</b> ' + esc(d.kill) + '</div>' : '') +
+    '<div class="when">Last decided ' + nice(d.date) + ' (' + plural(age, 'day') + ' ago)</div>' +
+    '<div class="actions"><button class="btn sm ghost" data-act="recheck" data-k="' + d.id + '">Re-check thesis</button><button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">Log a trade</button></div></div>';
+}
+function vBook() {
+  const hs = holdings().sort((a, b) => (num(b.size) || 0) - (num(a.size) || 0)), ws = watching();
+  const closed = Object.values(latestByTicker()).filter((d) => d.type === 'sell' || d.type === 'pass');
+  const cap = D.settings.ideaCap, n = hs.length + ws.length;
+  let h = '<div class="kicker">Your book</div><div class="h2">' + hs.length + ' held · ' + ws.length + ' watching</div>' +
+    '<div class="small ' + (n > cap ? '' : 'mute') + '">' + n + ' of ' + cap + ' idea slots used.' + (n > cap ? ' <b>Over the cap: something has to go.</b>' : '') + '</div>';
+  if (!n && !closed.length) return h + '<div class="note info" style="margin-top:12px">Log a Buy, Hold or Watch decision and it appears here.</div>';
+  if (hs.length) {
+    const total = hs.reduce((a, d) => a + (num(d.size) || 0), 0);
+    h += '<h3 class="sec">Conviction vs size</h3><div class="card">' + sizeChart(hs) + '<div class="when" style="margin-top:6px">Target size = your ' + D.settings.maxPos + '% cap × conviction / 10. Holdings add up to ' + fmt(total) + '% of the portfolio.</div></div>';
+    h += '<h3 class="sec">Holding</h3>' + hs.map(holdCard).join('');
+  }
+  if (ws.length) {
+    h += '<h3 class="sec">Watching</h3><div class="card">' + ws.map((d) => '<div class="rrow"><div class="lbl"><b>' + esc(d.tk) + '</b> <span class="when">since ' + nice(d.date) + '</span><div class="small">' + esc(d.thesis) + '</div></div>' +
+      '<button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">Decide</button></div>').join('') + '</div>';
+  }
+  if (closed.length) {
+    h += '<details class="card"><summary><b>Sold and passed (' + closed.length + ')</b></summary>' + closed.map((d) =>
+      '<div class="rrow"><div class="lbl"><b>' + esc(d.tk) + '</b> <span class="chip">' + T(d.type).t + '</span> <span class="when">' + nice(d.date) + '</span><div class="small">' + esc(d.thesis) + '</div></div></div>').join('') + '</details>';
+  }
+  return h;
+}
+
+/* ---------- Review ---------- */
+function reviewForm(x) {
+  const d = x.d, key = d.id + '|' + x.n, st = RV[key] = RV[key] || { th: '', pr: '', tags: [] };
+  const tagGroups = CATS.concat([{ id: 'good', t: 'Went right' }]).map((c) => {
+    const tags = TAGS.filter((t) => t.c === c.id); if (!tags.length) return '';
+    return '<div class="when" style="margin:8px 0 4px">' + esc(c.t) + '</div><div class="chips">' + tags.map((t) => '<button class="chipb' + (st.tags.includes(t.id) ? ' on' : '') + '" data-act="rtag" data-k="' + key + '" data-v="' + t.id + '">' + esc(t.t) + '</button>').join('') + '</div>';
+  }).join('');
+  return '<div class="card"><div class="ch"><span>' + T(d.type).t + ' ' + esc(d.tk) + '</span><span class="chip info">' + x.n + '-day review</span></div>' +
+    '<div class="when">Decided ' + nice(d.date) + (isNum(num(d.px)) ? ' at ' + d.px : '') + (isNum(num(d.p)) ? ' · ' + d.p + '% sure' : '') + (d.emo && d.emo.length ? ' · felt ' + esc(emoNames(d.emo)) : '') + '</div>' +
+    '<div class="quote">' + esc(d.thesis) + '</div>' + (d.kill ? '<div class="kill"><b>Kill if</b> ' + esc(d.kill) + '</div>' : '') +
+    '<label class="field"><span>Price now</span><input type="number" inputmode="decimal" step="any" id="rp-' + key + '"></label>' +
+    '<div class="q">Did the thesis play out?</div>' + seg('rset', key, [{ id: 'yes', t: 'Yes' }, { id: 'partly', t: 'Partly' }, { id: 'no', t: 'No' }, { id: 'early', t: 'Too early' }], st.th, ' data-f2="th"') +
+    '<div class="q">Was the process good, whatever the result?</div>' + seg('rset', key, [{ id: 'good', t: 'Good process' }, { id: 'bad', t: 'Bad process' }], st.pr, ' data-f2="pr"') +
+    '<div class="q">What applies?</div>' + tagGroups +
+    '<label class="field"><span>Lesson in one line (optional)</span><input type="text" id="rl-' + key + '"></label>' +
+    '<label class="inline"><input type="checkbox" id="ra-' + key + '">Add it to my rulebook under</label><select id="rc-' + key + '">' + CATS.map((c) => '<option value="' + c.id + '">' + c.t + '</option>').join('') + '</select>' +
+    '<div class="actions"><button class="btn" data-act="rsave" data-k="' + key + '">Save review</button></div></div>';
+}
+function vReview() {
+  const due = dueList(), s = todayStr(), wk = monday(s), W = D.weeks[wk] || {};
+  let h = '<div class="kicker">Close the loop</div><div class="h2">Review</div>';
+  h += due.length ? '<h3 class="sec">Due now (' + due.length + ')</h3>' + due.map(reviewForm).join('')
+    : '<div class="note info" style="margin-top:10px">No reviews due. Each decision comes back at 30, 90 and 365 days. To get feedback sooner, back-fill past decisions with their real dates.</div>';
+  h += '<h3 class="sec">Weekly reflection · week of ' + nice(wk) + '</h3><div class="card">' +
+    '<div class="q">Which decision this week was I most emotional about, and what did I do?</div><textarea data-act="wk" data-k="emo">' + esc(W.emo || '') + '</textarea>' +
+    '<div class="q">Where did I break a rule, or nearly?</div><textarea data-act="wk" data-k="rule">' + esc(W.rule || '') + '</textarea>' +
+    '<div class="q">One thing to do differently next week</div><textarea data-act="wk" data-k="change">' + esc(W.change || '') + '</textarea>' +
+    '<div class="when" id="wksaved">' + (W.at ? 'Saved' : '') + '</div></div>';
+  h += vScore();
+  const all = decs();
+  if (all.length) {
+    h += '<h3 class="sec">All decisions (' + all.length + ')</h3>' + all.map((d) => {
+      const cls = d.status === 'cooling' ? 'warn' : d.status === 'dropped' ? '' : 'info';
+      return '<details class="card"><summary><span class="chip ' + cls + '">' + T(d.type).t + '</span><b>' + esc(d.tk) + '</b><span class="when">' + nice(d.date) + (d.status !== 'done' ? ' · ' + d.status : '') + (d.override ? ' · cool-off overridden' : '') + '</span></summary>' + detailHtml(d) +
+        '<div class="actions"><button class="btn sm ghost" data-act="del" data-k="' + d.id + '">Delete</button></div></details>';
+    }).join('');
+  }
+  return h;
+}
+function detailHtml(d) {
+  const kv = [];
+  const add = (k, v) => { if (v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) kv.push('<dt>' + k + '</dt><dd>' + esc(v) + '</dd>'); };
+  add('Price', d.px); add('Size after', isNum(num(d.size)) ? d.size + '%' : ''); add('Conviction', isNum(num(d.conv)) ? d.conv + '/10' : '');
+  add('Sure', isNum(num(d.p)) ? d.p + '%' : ''); add('Up / down', isNum(num(d.up)) || isNum(num(d.dn)) ? fmt(num(d.up)) + '% / ' + fmt(num(d.dn)) + '%' : '');
+  add('Thesis', d.thesis); add('Variant view', d.variant); add('Kill if', d.kill); add('Pre-mortem', d.premortem);
+  add('Why sell', (d.why || []).map((w) => (SELLWHY.find((x) => x.id === w) || {}).t).join(', '));
+  add('Planned', d.planned === 'yes' ? 'Yes' : d.planned === 'no' ? 'No' : ''); add('Framework', d.fw ? d.fw + (d.fwWhy ? ': ' + d.fwWhy : '') : '');
+  add('Felt', emoNames(d.emo)); add('Flags', (d.flags || []).join(' '));
+  Object.keys(d.cps || {}).sort((a, b) => a - b).forEach((n) => {
+    const cp = d.cps[n], e = edge(d, cp);
+    add(n + '-day', [cp.th ? 'thesis ' + cp.th : '', cp.pr ? cp.pr + ' process' : '', isNum(e) ? 'edge ' + pct(e) : '', (cp.tags || []).map((t) => (TAGS.find((x) => x.id === t) || {}).t).join(', '), cp.note].filter(Boolean).join(' · '));
+  });
+  return '<dl class="kv">' + kv.join('') + '</dl>';
+}
+function groupRow(label, rows) {
+  const es = rows.map((r) => r.e).filter(isNum);
+  return '<tr><td>' + label + '</td><td class="n">' + es.length + '</td><td class="n ' + pctCls(avg(es)) + '">' + (es.length ? pct(avg(es)) : '–') + '</td></tr>';
+}
+function calChart(b) {
+  const W = 300, H = 220, L = 34, R = 18, Tp = 10, B = 30;
+  const x = (p) => L + p / 100 * (W - L - R), y = (v) => Tp + (1 - v / 100) * (H - Tp - B);
+  let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Calibration: how sure you were versus how often you were right">';
+  [0, 25, 50, 75, 100].forEach((v) => { g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="lab" x="' + (L - 4) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v + '%</text><text class="lab" x="' + x(v) + '" y="' + (H - B + 13) + '" text-anchor="middle">' + v + '%</text>'; });
+  g += '<line class="diag" x1="' + x(0) + '" y1="' + y(0) + '" x2="' + x(100) + '" y2="' + y(100) + '"/>';
+  g += '<text class="lab" x="' + ((L + W - R) / 2) + '" y="' + (H - 3) + '" text-anchor="middle">How sure I said I was</text>';
+  b.forEach((k) => { const r = 4 + Math.sqrt(k.n) * 2; g += '<circle class="pt" cx="' + x(k.p) + '" cy="' + y(k.hit) + '" r="' + r + '"/><text class="tk" x="' + (x(k.p) + r + 3) + '" y="' + (y(k.hit) + 3) + '">' + k.n + '</text>'; });
+  return g + '</svg><div class="legend"><span>Dots on the dashed line = well calibrated. Below it = overconfident. Number = decisions.</span></div>';
+}
+function tradeChart() {
+  const t = todayStr(), months = [];
+  for (let i = 5; i >= 0; i--) { const d = pd(t); d.setDate(1); d.setMonth(d.getMonth() - i); months.push(ds(d).slice(0, 7)); }
+  const vals = months.map((m) => ({ m, n: tradesInMonth(m), u: urgesInMonth(m) })), bud = D.settings.tradeBudget;
+  const ymax = Math.max(bud + 2, ...vals.map((v) => v.n + 1)), W = 300, H = 150, L = 24, R = 8, Tp = 8, B = 22, bw = (W - L - R) / 6;
+  const y = (v) => Tp + (1 - v / ymax) * (H - Tp - B);
+  let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Trades per month against budget">';
+  g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(0) + '" y2="' + y(0) + '"/>';
+  vals.forEach((v, i) => {
+    const bx = L + i * bw + bw * 0.2;
+    g += '<rect class="bar' + (v.n > bud ? ' over' : '') + '" x="' + bx + '" y="' + y(v.n) + '" width="' + (bw * 0.6) + '" height="' + (y(0) - y(v.n)) + '" rx="3"/>' +
+      '<text class="lab" x="' + (bx + bw * 0.3) + '" y="' + (y(v.n) - 3) + '" text-anchor="middle">' + v.n + '</text>' +
+      '<text class="lab" x="' + (bx + bw * 0.3) + '" y="' + (H - 6) + '" text-anchor="middle">' + MON[Number(v.m.slice(5)) - 1] + '</text>';
+  });
+  g += '<line class="bud" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(bud) + '" y2="' + y(bud) + '"/><text class="lab" x="' + (L + 2) + '" y="' + (y(bud) - 3) + '">budget ' + bud + '</text>';
+  return g + '</svg>';
+}
+function vScore() {
+  const S = scored(), n = S.length;
+  let h = '<h3 class="sec">Scorecard</h3>';
+  h += '<div class="card"><div class="ch">Trades per month</div>' + tradeChart() + '</div>';
+  if (!n) return h + '<div class="card"><div class="ch">Patterns</div><div class="small mute">Fills in as you review decisions. Read anything under about 20 reviewed decisions as a hint, not a finding.</div></div>';
+  const small = n < 20 ? '<div class="note warn small">Only ' + plural(n, 'reviewed decision') + '. Treat every pattern below as a hint until about 20.</div>' : '';
+  h += small;
+  // 2x2
+  const cell = (pr, good) => S.filter((r) => r.cp.pr === pr && isNum(r.e) && (good ? r.e > 0 : r.e <= 0)).length;
+  h += '<div class="card"><div class="ch">Decision vs outcome</div><div class="matrix"><div></div><div class="h">Made money</div><div class="h">Lost money</div>' +
+    '<div class="rh">Good process</div><div class="m g"><b>' + cell('good', true) + '</b>Earned</div><div class="m l"><b>' + cell('good', false) + '</b>Bad luck: keep doing it</div>' +
+    '<div class="rh">Bad process</div><div class="m d"><b>' + cell('bad', true) + '</b>Dumb luck: the dangerous box</div><div class="m x"><b>' + cell('bad', false) + '</b>The lesson</div></div>' +
+    '<div class="when" style="margin-top:8px">Edge = the price move in the direction of your decision (for a sell or pass, a falling price counts in your favour).</div></div>';
+  // calibration
+  const cal = S.filter((r) => isNum(num(r.d.p)) && r.th !== null);
+  if (cal.length) {
+    const edges = [0, 50, 60, 70, 80, 90, 101], b = [];
+    for (let i = 0; i < edges.length - 1; i++) {
+      const g = cal.filter((r) => num(r.d.p) >= edges[i] && num(r.d.p) < edges[i + 1]);
+      if (g.length) b.push({ p: avg(g.map((r) => num(r.d.p))), hit: avg(g.map((r) => r.th)) * 100, n: g.length });
+    }
+    const over = avg(cal.map((r) => num(r.d.p))) - avg(cal.map((r) => r.th)) * 100;
+    const brier = avg(cal.map((r) => Math.pow(num(r.d.p) / 100 - r.th, 2)));
+    h += '<div class="card"><div class="ch">Calibration</div>' + calChart(b) +
+      '<div class="small" style="margin-top:8px">On average you said <b>' + fmt(avg(cal.map((r) => num(r.d.p))), 0) + '%</b> and were right <b>' + fmt(avg(cal.map((r) => r.th)) * 100, 0) + '%</b> of the time: ' +
+      (Math.abs(over) < 5 ? 'well calibrated.' : over > 0 ? '<b>overconfident by ' + fmt(over, 0) + ' points</b>.' : 'underconfident by ' + fmt(-over, 0) + ' points.') +
+      ' Brier score ' + fmt(brier, 2) + ' (0 is perfect, 0.25 is a coin flip).</div></div>';
+  }
+  // behaviour
+  const trades = S.filter((r) => T(r.d.type).trade);
+  h += '<div class="card"><div class="ch">What your behaviour costs</div><table class="tbl"><tr><th>Group</th><th class="n">n</th><th class="n">Avg edge</th></tr>' +
+    groupRow('Planned trades', trades.filter((r) => r.d.planned === 'yes')) + groupRow('Unplanned trades', trades.filter((r) => r.d.planned === 'no')) +
+    groupRow('Calm when deciding', S.filter((r) => !isHot(r.d.emo))) + groupRow('Hot when deciding', S.filter((r) => isHot(r.d.emo))) +
+    groupRow('Followed framework', S.filter((r) => r.d.fw && !fwMismatch(r.d))) + groupRow('Overrode framework', S.filter((r) => fwMismatch(r.d))) +
+    groupRow('Overrode a cool-off', S.filter((r) => r.d.override)) +
+    groupRow('Conviction 8–10', S.filter((r) => num(r.d.conv) >= 8)) + groupRow('Conviction 5–7', S.filter((r) => num(r.d.conv) >= 5 && num(r.d.conv) < 8)) + groupRow('Conviction 1–4', S.filter((r) => num(r.d.conv) < 5)) +
+    '</table>';
+  const sells = S.filter((r) => (r.d.type === 'sell' || r.d.type === 'trim') && isNum(r.e));
+  if (sells.length) { const after = -avg(sells.map((r) => r.e)); h += '<div class="small" style="margin-top:10px">After you sold or trimmed, the price moved <b class="' + pctCls(-after) + '">' + pct(after) + '</b> on average (' + sells.length + '). ' + (after > 5 ? 'You may be selling winners too early.' : after < -5 ? 'Your exits have been well timed.' : '') + '</div>'; }
+  const hiC = S.filter((r) => num(r.d.conv) >= 8 && isNum(r.e)), loC = S.filter((r) => num(r.d.conv) < 5 && isNum(r.e));
+  if (hiC.length >= 3 && loC.length >= 3) {
+    const diff = avg(hiC.map((r) => r.e)) - avg(loC.map((r) => r.e));
+    h += '<div class="small" style="margin-top:8px">' + (diff > 0 ? 'Your high-conviction calls beat your low-conviction ones by ' + fmt(diff) + ' points. If they are also your small positions, size them up.' : 'High conviction has not beaten low conviction yet. Conviction is not yet a signal: hold sizes closer to equal.') + '</div>';
+  }
+  h += '</div>';
+  // mistakes
+  const counts = {};
+  Object.values(D.decisions).forEach((d) => Object.values(d.cps || {}).forEach((cp) => (cp.tags || []).forEach((t) => { counts[t] = (counts[t] || 0) + 1; })));
+  const top = Object.keys(counts).map((k) => ({ t: TAGS.find((x) => x.id === k), n: counts[k] })).filter((x) => x.t).sort((a, b) => b.n - a.n);
+  if (top.length) {
+    const w = catWeights(), worst = CATS.slice().sort((a, b) => w[b.id] - w[a.id])[0];
+    h += '<div class="card"><div class="ch">Your recurring patterns</div><table class="tbl">' + top.slice(0, 8).map((x) => '<tr><td>' + esc(x.t.t) + ' <span class="when">' + esc(x.t.c === 'good' ? 'went right' : catT(x.t.c)) + '</span></td><td class="n">' + x.n + '</td></tr>').join('') + '</table>' +
+      (w[worst.id] > 1 ? '<div class="small" style="margin-top:8px">Your rule of the day now leans toward <b>' + esc(worst.t) + '</b>, where most of your tagged mistakes sit.</div>' : '') + '</div>';
+  }
+  return h;
+}
+
+/* ---------- More ---------- */
+function vMore() {
+  const g = ghCfg(), st = D.settings, lb = D.lastBackup, cards = allCards();
+  const hidden = RULES.filter((c) => D.cards[c.id] && D.cards[c.id].off);
+  let h = '<details class="card"><summary><b>My rulebook (' + cards.length + ' cards)</b><span class="when">tap to open</span></summary>' +
+    '<div class="small mute" style="margin:6px 0">One card a day on Today, picked from what is due and weighted toward the mistakes you tag in reviews. Cards marked pre-flight appear as a checklist on every Buy and Add.</div>' +
+    CATS.map((c) => '<div class="q">' + c.t + ' <span class="when">' + c.d + '</span></div>' + cards.filter((x) => x.cat === c.id).map((x) =>
+      '<div class="rrow"><div class="lbl">' + esc(x.t) + (x.pre ? ' <span class="chip info">pre-flight</span>' : '') + (x.mine ? ' <span class="chip good">mine</span>' : '') + '<div class="lv">' + levelDots(x) + '</div></div>' +
+      '<button class="btn sm ghost" data-act="' + (x.mine ? 'cdel' : 'coff') + '" data-k="' + x.id + '">' + (x.mine ? 'Delete' : 'Hide') + '</button></div>').join('')).join('') +
+    (hidden.length ? '<div class="q">Hidden</div>' + hidden.map((x) => '<div class="rrow"><div class="lbl mute">' + esc(x.t) + '</div><button class="btn sm ghost" data-act="con" data-k="' + x.id + '">Restore</button></div>').join('') : '') +
+    '<div class="q">Add a rule</div><select id="nc-cat">' + CATS.map((c) => '<option value="' + c.id + '">' + c.t + '</option>').join('') + '</select>' +
+    '<label class="field"><span>Rule</span><input type="text" id="nc-t" placeholder="Short and checkable"></label>' +
+    '<label class="field"><span>Why (the mistake it prevents)</span><input type="text" id="nc-why"></label>' +
+    '<label class="inline"><input type="checkbox" id="nc-pre">Show as a pre-flight check on Buy and Add</label>' +
+    '<div class="actions"><button class="btn" data-act="cadd">Add rule</button></div></details>';
+
+  h += '<div class="card"><div class="ch">Guardrails</div>' +
+    '<label class="field"><span>Trade budget per month (buys, adds, trims, sells)</span><input type="number" inputmode="numeric" min="1" max="100" data-act="setting" data-k="tradeBudget" value="' + st.tradeBudget + '"></label>' +
+    '<label class="field"><span>Cool-off for unplanned or hot trades (hours)</span><input type="number" inputmode="numeric" min="0" max="168" data-act="setting" data-k="coolHours" value="' + st.coolHours + '"></label>' +
+    '<label class="field"><span>Idea cap (held plus watching)</span><input type="number" inputmode="numeric" min="1" max="100" data-act="setting" data-k="ideaCap" value="' + st.ideaCap + '"></label>' +
+    '<label class="field"><span>Maximum position size (% of portfolio)</span><input type="number" inputmode="decimal" min="1" max="100" data-act="setting" data-k="maxPos" value="' + st.maxPos + '"></label></div>';
+
+  h += '<div class="card"><div class="ch">Reminders</div><div class="small">Adds three repeating events to your calendar: a 2-minute check-in at 9pm, the weekly review on Sunday at 7pm, and the monthly scorecard on the first Saturday.</div><div class="actions"><button class="btn" data-act="ics">Add to calendar</button></div></div>';
+
+  h += '<div class="card"><div class="ch">Backup</div><div class="small">Your journal lives only on this device. Deleting the home-screen icon deletes it. ' + (lb ? 'Last backup: ' + nice(lb.at.slice(0, 10)) + ' (' + (lb.how === 'github' ? 'GitHub' : 'file') + ').' : '<b>No backup yet.</b>') + '</div>' +
+    '<div class="actions"><button class="btn" data-act="savefile">Save backup file</button><label class="btn ghost">Restore from file<input type="file" accept="application/json,.json" data-act="restorefile" hidden></label></div>' +
+    '<div class="when" style="margin-top:8px">Restore merges: entries on this device are kept, missing ones are added.</div></div>';
+
+  h += '<div class="card"><div class="ch">Automatic backup to GitHub</div><div class="small">Saves your journal to a <b>private</b> repo a few seconds after each change. Use a fine-grained token limited to that one repo, with Contents: read and write.</div>' +
+    '<label class="field"><span>GitHub owner</span><input type="text" autocapitalize="off" autocorrect="off" data-gh="owner" value="' + esc(g.owner || '') + '"></label>' +
+    '<label class="field"><span>Private repo</span><input type="text" autocapitalize="off" autocorrect="off" data-gh="repo" value="' + esc(g.repo || '') + '" placeholder="investor-coach-data"></label>' +
+    '<label class="field"><span>File path</span><input type="text" autocapitalize="off" autocorrect="off" data-gh="path" value="' + esc(g.path || 'investor-coach.json') + '"></label>' +
+    '<label class="field"><span>Token (stays on this device, never in backup files)</span><input type="password" autocomplete="off" data-gh="token" value="' + esc(g.token || '') + '"></label>' +
+    '<div class="actions"><button class="btn" data-act="ghsave">Save and back up now</button><button class="btn ghost" data-act="ghpull">Restore from GitHub</button>' + (g.token ? '<button class="btn ghost" data-act="ghclear">Forget token</button>' : '') + '</div>' +
+    '<div class="when" style="margin-top:8px" id="syncline">' + syncLine() + '</div></div>';
+  return h + '<div class="build">Investor Coach · build <span title="build">' + BUILD + '</span></div>';
+}
+
+/* ---------- GitHub backup ---------- */
+function ghCfg() { try { return JSON.parse(localStorage.getItem(GHKEY)) || {}; } catch (e) { return {}; } }
+function ghOn() { const g = ghCfg(); return !!(g.owner && g.repo && g.token); }
+function ghUrl(g) { return 'https://api.github.com/repos/' + encodeURIComponent(g.owner) + '/' + encodeURIComponent(g.repo) + '/contents/' + (g.path || 'investor-coach.json').split('/').map(encodeURIComponent).join('/'); }
+function ghHeaders(g) { return { 'Authorization': 'Bearer ' + g.token, 'Accept': 'application/vnd.github+json', 'X-GitHub-Api-Version': '2022-11-28' }; }
+function ghErr(st) {
+  return ({ 401: 'token rejected (expired or mistyped)', 403: 'token has no write access to this repo', 404: 'repo not found, or the token does not cover it', 409: 'conflict, will retry', 422: 'GitHub rejected the file' })[st] || ('GitHub error ' + st);
+}
+function b64e(str) { const b = new TextEncoder().encode(str); let s = ''; for (let i = 0; i < b.length; i += 0x8000) s += String.fromCharCode.apply(null, b.subarray(i, i + 0x8000)); return btoa(s); }
+function b64d(s) { const bin = atob(s.replace(/\s/g, '')); const u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new TextDecoder().decode(u); }
+async function ghGet(g) {
+  const r = await fetch(ghUrl(g), { headers: ghHeaders(g), cache: 'no-store' });
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error(ghErr(r.status));
+  const j = await r.json();
+  return { sha: j.sha, data: JSON.parse(b64d(j.content)) };
+}
+let syncing = false, syncAgain = false, syncTimer = null, syncMsg = '';
+function syncLine() {
+  if (syncMsg) return esc(syncMsg);
+  if (!ghOn()) return 'GitHub backup is off.';
+  return localStorage.getItem(DIRTY) ? 'Changes waiting to back up.' : (D.lastBackup && D.lastBackup.how === 'github' ? 'Backed up to GitHub.' : '');
+}
+function setSync(m) { syncMsg = m; const el = document.getElementById('syncline'); if (el) el.textContent = m; }
+function markDirty() {
+  localStorage.setItem(DIRTY, '1');
+  if (!ghOn()) return;
+  clearTimeout(syncTimer); syncTimer = setTimeout(ghPush, 6000);
+}
+async function ghPush() {
+  if (!ghOn() || !navigator.onLine) return;
+  if (syncing) { syncAgain = true; return; }
+  syncing = true; setSync('Backing up…');
+  const g = ghCfg();
+  try {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const cur = await ghGet(g);
+      if (cur && cur.data) mergeIn(cur.data, true);
+      const body = { message: 'Backup ' + new Date().toISOString(), content: b64e(JSON.stringify(D)) };
+      if (cur) body.sha = cur.sha;
+      const r = await fetch(ghUrl(g), { method: 'PUT', headers: Object.assign({ 'Content-Type': 'application/json' }, ghHeaders(g)), body: JSON.stringify(body) });
+      if (r.ok) {
+        localStorage.removeItem(DIRTY);
+        D.lastBackup = { at: new Date().toISOString(), how: 'github' }; persist();
+        const n = new Date(); setSync('Backed up to GitHub at ' + pad(n.getHours()) + ':' + pad(n.getMinutes()) + '.');
+        return;
+      }
+      if (r.status !== 409 && r.status !== 422) throw new Error(ghErr(r.status));
+    }
+    throw new Error('kept conflicting, try again');
+  } catch (e) {
+    setSync('Backup failed: ' + e.message);
+  } finally {
+    syncing = false;
+    if (syncAgain) { syncAgain = false; setTimeout(ghPush, 1000); }
+  }
+}
+
+/* ---------- Merge (restore): never drops an entry ---------- */
+function deepFill(a, b) {
+  if (a === undefined || a === null || a === '') return b;
+  if (typeof a === 'object' && !Array.isArray(a) && b && typeof b === 'object' && !Array.isArray(b)) { for (const k in b) a[k] = deepFill(a[k], b[k]); return a; }
+  return a;
+}
+function mergeIn(inc, quiet) {
+  if (!inc || typeof inc !== 'object' || !inc.decisions || typeof inc.decisions !== 'object') throw new Error('This is not an Investor Coach backup.');
+  D.deleted = Object.assign({}, inc.deleted || {}, D.deleted || {});
+  let added = 0;
+  for (const id in inc.decisions) {
+    if (D.deleted[id]) continue;
+    if (!D.decisions[id]) added++;
+    D.decisions[id] = deepFill(D.decisions[id], inc.decisions[id]);
+  }
+  ['days', 'weeks', 'cards', 'myCards', 'settings'].forEach((k) => { D[k] = deepFill(D[k] || {}, inc[k] || {}); });
+  if (quiet) persist(); else save();
+  return added;
+}
+
+/* ---------- Calendar reminders (.ics) ---------- */
+function icsText() {
+  const now = new Date(), stamp = now.getUTCFullYear() + pad(now.getUTCMonth() + 1) + pad(now.getUTCDate()) + 'T' + pad(now.getUTCHours()) + pad(now.getUTCMinutes()) + '00Z';
+  const t = todayStr(), compact = (s) => s.replace(/-/g, '');
+  let sun = t; while (pd(sun).getDay() !== 0) sun = addDays(sun, 1);
+  const f = pd(t); let sat = ds(new Date(f.getFullYear(), f.getMonth() + 1, 1)); while (pd(sat).getDay() !== 6) sat = addDays(sat, 1);
+  const ev = (id, date, time, dur, rule, sum, desc) => ['BEGIN:VEVENT', 'UID:' + id + '@investor-coach', 'DTSTAMP:' + stamp, 'DTSTART:' + compact(date) + 'T' + time, 'DURATION:' + dur, 'RRULE:' + rule, 'SUMMARY:' + sum, 'DESCRIPTION:' + desc, 'BEGIN:VALARM', 'ACTION:DISPLAY', 'DESCRIPTION:' + sum, 'TRIGGER:PT0M', 'END:VALARM', 'END:VEVENT'].join('\r\n');
+  return ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Investor Coach//EN', 'CALSCALE:GREGORIAN',
+    ev('daily-checkin', t, '210000', 'PT5M', 'FREQ=DAILY', 'Investor Coach: 2-minute check-in', 'How do I feel about the market\\, any urges\\, rule of the day.'),
+    ev('weekly-review', sun, '190000', 'PT20M', 'FREQ=WEEKLY;BYDAY=SU', 'Investor Coach: weekly review', 'Close due reviews\\, then three reflection questions.'),
+    ev('monthly-score', sat, '100000', 'PT30M', 'FREQ=MONTHLY;BYDAY=1SA', 'Investor Coach: monthly scorecard', 'Calibration\\, behaviour costs\\, recurring mistakes. Pick one rule to work on.'),
+    'END:VCALENDAR'].join('\r\n');
+}
+function download(text, name, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = document.createElement('a'); a.href = url;
+  if (type !== 'text/calendar') a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+async function saveFile() {
+  const text = JSON.stringify(D, null, 1), name = 'investor-coach-' + todayStr() + '.json';
+  try {
+    const file = new File([text], name, { type: 'application/json' });
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: name });
+      D.lastBackup = { at: new Date().toISOString(), how: 'file' }; save(); render(); toast('Backup saved'); return;
+    }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  download(text, name, 'application/json');
+  D.lastBackup = { at: new Date().toISOString(), how: 'file' }; save(); render(); toast('Backup downloaded');
+}
+
+/* ---------- Events ---------- */
+function rateCard(id, lived) {
+  const s = todayStr(), cs = D.cards[id] = D.cards[id] || {};
+  const b = lived ? Math.min((cs.box || 0) + 1, 5) : 1;
+  cs.box = b; cs.due = addDays(s, lived ? LEITNER[b - 1] : 1);
+  dayRec(s, true).cardDone = lived ? 'lived' : 'need';
+  save(); render();
+}
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]'); if (!el || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return;
+  const a = el.dataset.act, k = el.dataset.k, v = el.dataset.v, s = todayStr();
+  if (a === 'tab') { view = v; render(); window.scrollTo(0, 0); return; }
+  if (a === 'state' || a === 'urge') { const x = dayRec(k, true); x[a] = x[a] === v ? null : v; save(); render(); return; }
+  if (a === 'lived' || a === 'need') { rateCard(k, a === 'lived'); return; }
+  if (a === 'another') {
+    const x = dayRec(s, true), pool = cardPool(s).filter((c) => c.id !== x.card);
+    const pick = pool.length ? pool[Math.abs(hash(String(Date.now()))) % Math.min(pool.length, 5)] : null;
+    if (pick) { x.card = pick.id; x.cardDone = null; persist(); render(); }
+    return;
+  }
+  if (a === 'cdo' || a === 'cdrop') {
+    const d = D.decisions[k]; if (!d) return;
+    if (a === 'cdo') { d.status = 'done'; d.doneAt = new Date().toISOString(); if (new Date(d.coolUntil) > new Date()) d.override = true; toast(d.override ? 'Logged as an override. It will show in your scorecard.' : 'Done. It comes back for review in 30 days.'); }
+    else { d.status = 'dropped'; d.droppedAt = new Date().toISOString(); toast('Urge resisted. That counts.'); }
+    save(); render(); return;
+  }
+  if (a === 'fset') { draft[k] = (k !== 'type' && draft[k] === v) ? '' : v; keepDraft(); render(); return; }
+  if (a === 'ftog') { const arr = draft[k] = draft[k] || []; const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); keepDraft(); render(); return; }
+  if (a === 'fpre') { draft.pre = draft.pre || {}; draft.pre[k] = !draft.pre[k]; keepDraft(); el.classList.toggle('done', !!draft.pre[k]); $('#warn').innerHTML = warnHtml(); return; }
+  if (a === 'submit') { submit(); return; }
+  if (a === 'fclear') { if (!confirm('Clear this form?')) return; draft = newDraft(); localStorage.removeItem(DRAFT); render(); return; }
+  if (a === 'recheck' || a === 'trade') {
+    const d = D.decisions[k]; if (!d) return;
+    const keep = { tk: d.tk, size: d.size == null ? '' : d.size, conv: d.conv || 5, p: d.p || 60, kill: d.kill, fw: d.fw };
+    draft = a === 'recheck' ? newDraft(Object.assign(keep, { type: 'hold', thesis: d.thesis, variant: d.variant })) : newDraft(Object.assign(keep, { type: d.type === 'watch' ? 'buy' : 'add' }));
+    keepDraft(); view = 'decide'; render(); window.scrollTo(0, 0); return;
+  }
+  if (a === 'rset') { const st = RV[k] = RV[k] || { th: '', pr: '', tags: [] }; st[el.dataset.f2] = v; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); return; }
+  if (a === 'rtag') { const st = RV[k] = RV[k] || { th: '', pr: '', tags: [] }; const i = st.tags.indexOf(v); if (i >= 0) st.tags.splice(i, 1); else st.tags.push(v); el.classList.toggle('on', i < 0); return; }
+  if (a === 'rsave') {
+    const [id, n] = k.split('|'), d = D.decisions[id], st = RV[k] || {};
+    if (!d) return;
+    if (!st.th || !st.pr) { toast('Pick an answer for both questions'); return; }
+    const px = num(document.getElementById('rp-' + k).value), note = document.getElementById('rl-' + k).value.trim();
+    if (!isNum(px) && !confirm('No current price, so this review cannot score the result. Save anyway?')) return;
+    d.cps = d.cps || {};
+    d.cps[n] = { at: new Date().toISOString(), px, th: st.th, pr: st.pr, tags: st.tags.slice(), note };
+    if (note && document.getElementById('ra-' + k).checked) {
+      const cid = 'u' + uid();
+      D.myCards[cid] = { id: cid, cat: document.getElementById('rc-' + k).value, t: note, why: 'From my ' + n + '-day review of ' + d.tk + ' (' + nice(d.date) + ').' };
+    }
+    delete RV[k]; save(); render(); toast('Review saved'); return;
+  }
+  if (a === 'del') { const d = D.decisions[k]; if (!d || !confirm('Delete ' + T(d.type).t + ' ' + d.tk + ' from ' + nice(d.date) + '? This cannot be undone.')) return; delete D.decisions[k]; D.deleted[k] = new Date().toISOString(); save(); render(); toast('Deleted'); return; }
+  if (a === 'coff') { (D.cards[k] = D.cards[k] || {}).off = true; save(); render(); return; }
+  if (a === 'con') { if (D.cards[k]) delete D.cards[k].off; save(); render(); return; }
+  if (a === 'cdel') { if (!confirm('Delete this rule?')) return; if (D.myCards[k]) D.myCards[k].deleted = true; save(); render(); return; }
+  if (a === 'cadd') {
+    const t = $('#nc-t').value.trim(); if (!t) { toast('Write the rule first'); return; }
+    const cid = 'u' + uid();
+    D.myCards[cid] = { id: cid, cat: $('#nc-cat').value, t, why: $('#nc-why').value.trim(), pre: $('#nc-pre').checked ? 1 : 0 };
+    save(); render(); toast('Rule added'); return;
+  }
+  if (a === 'ics') { download(icsText(), 'investor-coach-reminders.ics', 'text/calendar'); return; }
+  if (a === 'savefile') { saveFile(); return; }
+  if (a === 'ghsave') {
+    const g = {}; document.querySelectorAll('[data-gh]').forEach((i) => { g[i.dataset.gh] = i.value.trim(); });
+    if (!g.owner || !g.repo || !g.token) { toast('Fill in owner, repo and token'); return; }
+    localStorage.setItem(GHKEY, JSON.stringify(g)); localStorage.setItem(DIRTY, '1'); ghPush(); return;
+  }
+  if (a === 'ghpull') {
+    if (!ghOn()) { toast('Set up GitHub backup first'); return; }
+    setSync('Restoring…');
+    ghGet(ghCfg()).then((r) => { if (!r) { setSync('No backup file in the repo yet.'); return; } const n = mergeIn(r.data); setSync('Restored. ' + plural(n, 'new decision') + ' added.'); render(); })
+      .catch((err) => setSync('Restore failed: ' + err.message));
+    return;
+  }
+  if (a === 'ghclear') { const g = ghCfg(); delete g.token; localStorage.setItem(GHKEY, JSON.stringify(g)); setSync(''); render(); toast('Token removed from this device'); }
+});
+let noteTimer = null, wkTimer = null;
+document.addEventListener('input', (e) => {
+  const el = e.target, ds_ = el.dataset || {};
+  if (ds_.f) {
+    draft[ds_.f] = el.type === 'range' ? Number(el.value) : el.value;
+    if (el.type === 'range') { const lv = document.getElementById('lv-' + ds_.f); if (lv) lv.textContent = el.value + ds_.suf; }
+    keepDraft(); const w = $('#warn'); if (w && ds_.f !== 'fw') w.innerHTML = warnHtml(); return;
+  }
+  if (ds_.act === 'dnote') {
+    dayRec(ds_.k, true).note = el.value;
+    clearTimeout(noteTimer); noteTimer = setTimeout(() => { save(); const s = $('#dsaved'); if (s) s.textContent = 'Saved'; }, 600); return;
+  }
+  if (ds_.act === 'wk') {
+    const wk = monday(todayStr()), W = D.weeks[wk] = D.weeks[wk] || {};
+    W[ds_.k] = el.value; W.at = new Date().toISOString();
+    clearTimeout(wkTimer); wkTimer = setTimeout(() => { save(); const s = $('#wksaved'); if (s) s.textContent = 'Saved'; }, 600);
+  }
+});
+document.addEventListener('change', (e) => {
+  const el = e.target, a = el.dataset && el.dataset.act, k = el.dataset && el.dataset.k;
+  if (el.dataset && el.dataset.f === 'fw') { draft.fw = el.value; keepDraft(); render(); return; }
+  if (el.dataset && el.dataset.f === 'date') { const w = $('#warn'); if (w) w.innerHTML = warnHtml(); return; }
+  if (a === 'setting') { const n = num(el.value); if (!isNum(n) || n < 0) { toast('Enter a number'); el.value = D.settings[k]; return; } D.settings[k] = n; save(); render(); toast('Saved'); return; }
+  if (a === 'restorefile') {
+    const f = el.files && el.files[0]; if (!f) return;
+    f.text().then((txt) => { const n = mergeIn(JSON.parse(txt)); render(); toast('Restored. ' + plural(n, 'new decision') + ' added.'); })
+      .catch((err) => toast(err.message || 'Could not read that file'));
+  }
+});
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden' && localStorage.getItem(DIRTY) && ghOn()) { clearTimeout(syncTimer); ghPush(); }
+  if (document.visibilityState === 'visible' && view === 'today') render();
+});
+
+/* ---------- Start ---------- */
+render();
+if (localStorage.getItem(DIRTY) && ghOn()) setTimeout(ghPush, 1500);
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
