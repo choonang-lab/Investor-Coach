@@ -12,7 +12,10 @@ no live market data (the user types prices in).
 - **Today**: daily check-in (state, urge, rotating prompt), rule of the day (Leitner boxes, weighted toward
   the categories of mistakes tagged in reviews), nudges (reviews due, framework gaps, size/conviction
   mismatch, stale theses, idea cap).
-- **Book**: latest decision per ticker; conviction-vs-size chart (target = maxPos x conviction / 10).
+- **Book**: latest decision per ticker; money-at-risk bars. **Sizing = loss budget / bad-case fall, capped at
+  maxPos** (the user's own framework rule: max-tolerable-loss / downside). Budgets: `settings.lossSpec` (speculative)
+  and `settings.lossCore` (core), as % of portfolio; each held decision carries `kind` (spec|core) and `dn` (bad-case
+  fall %). Conviction is recorded and scored but no longer sets size (v2).
 - **Review**: checkpoints at 30/90/365 days, weekly reflection, scorecard (process-vs-outcome matrix,
   calibration + Brier, behaviour cost table, sell regret, recurring mistake tags).
 
@@ -32,7 +35,7 @@ no live market data (the user types prices in).
    Any extra `<script>` tag must carry an attribute so this regex still finds the app code.
 3. **Preview at phone width before shipping** (launch config `investor-coach`, port 8766), seed test data
    via localStorage, check `document.documentElement.scrollWidth === 375`, then clear it.
-4. **Data shape is append-friendly:** `decisions[id] = {id, at, date, type, tk, px, size, conv, p, up, dn,
+4. **Data shape is append-friendly:** `decisions[id] = {id, at, date, type, tk, px, size, conv, p, up, dn, kind,
    thesis, variant, kill, premortem, why[], planned, fw, fwWhy, clean, emo[], pre{}, flags[], status
    (cooling|done|dropped), coolUntil, doneAt, droppedAt, override, cps{30|90|365: {at, px, th, pr, tags[], note}}}`;
    `days[YYYY-MM-DD] = {state, urge, note, card, cardDone}`; `weeks[monday] = {emo, rule, change, at}`;

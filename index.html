@@ -144,7 +144,7 @@ summary.q{color:var(--accent)}
 <nav id="tabbar"></nav>
 <div id="toast"></div>
 <script>
-const BUILD = 'v1';
+const BUILD = 'v2';
 const KEY = 'ic_data';
 const GHKEY = 'ic_gh';
 const DIRTY = 'ic_dirty';
@@ -292,7 +292,7 @@ function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
 
 /* ---------- State ---------- */
 function blank() {
-  return { v: 1, settings: { tradeBudget: 6, coolHours: 24, ideaCap: 10, maxPos: 15 },
+  return { v: 1, settings: { tradeBudget: 6, coolHours: 24, ideaCap: 10, maxPos: 15, lossSpec: 1, lossCore: 2 },
     decisions: {}, deleted: {}, days: {}, weeks: {}, cards: {}, myCards: {}, lastBackup: null, savedAt: null };
 }
 function fill(d, b) {
@@ -319,12 +319,18 @@ function latestByTicker() {
 }
 function holdings() { return Object.values(latestByTicker()).filter((d) => HELD.includes(d.type)); }
 function watching() { return Object.values(latestByTicker()).filter((d) => d.type === 'watch'); }
-function target(conv) { return D.settings.maxPos * conv / 10; }
+/* Sizing = loss budget / bad-case fall, capped at maxPos (size is set by the loss, not the upside). */
+const KINDS = [{ id: 'spec', t: 'Speculative idea' }, { id: 'core', t: 'Core idea' }];
+function kindT(k) { return k === 'core' ? 'core' : 'speculative'; }
+function budgetFor(kind) { return kind === 'core' ? D.settings.lossCore : D.settings.lossSpec; }
+function sizeFor(d) { const dn = num(d.dn); if (!isNum(dn) || dn <= 0) return null; return Math.min(D.settings.maxPos, budgetFor(d.kind) / (dn / 100)); }
+function atRisk(d) { const s = num(d.size), dn = num(d.dn); return isNum(s) && isNum(dn) ? s * dn / 100 : null; }
 function sizeFit(d) {
-  const s = num(d.size), c = num(d.conv); if (!isNum(s) || !isNum(c)) return '';
-  const t = target(c);
-  if (s > t * 1.5 && s - t > 1) return 'over';
-  if (s < t * 0.5 && t - s > 1) return 'under';
+  const s = num(d.size), r = atRisk(d), b = budgetFor(d.kind);
+  if (!isNum(s)) return '';
+  if (!isNum(r)) return 'nodn';
+  if (r > b * 1.1) return 'over';
+  if (r < b * 0.5 && sizeFor(d) - s > 0.5) return 'under';
   return 'ok';
 }
 function fwMismatch(d) { return !!(d.fw && FAM[d.fw] && FAM[d.type] && FAM[d.fw] !== FAM[d.type]); }
@@ -441,8 +447,10 @@ function vToday() {
   const hs = holdings();
   const gaps = hs.filter(fwMismatch);
   if (gaps.length) nudges.push({ lvl: 'bad', t: 'Acting against your own framework: ' + gaps.map((d) => d.tk + ' (says ' + d.fw + ', you ' + T(d.type).t.toUpperCase() + ')').join(', '), act: 'tab', v: 'book', b: 'Book' });
-  const off = hs.filter((d) => sizeFit(d) === 'over' || sizeFit(d) === 'under');
-  if (off.length) nudges.push({ lvl: 'warn', t: 'Size does not match conviction: ' + off.map((d) => d.tk).join(', '), act: 'tab', v: 'book', b: 'Book' });
+  const off = hs.filter((d) => sizeFit(d) === 'over');
+  if (off.length) nudges.push({ lvl: 'bad', t: 'Bad case would cost more than your loss budget: ' + off.map((d) => d.tk + ' (' + fmt(atRisk(d)) + '% vs ' + fmt(budgetFor(d.kind)) + '%)').join(', '), act: 'tab', v: 'book', b: 'Book' });
+  const nodn = hs.filter((d) => sizeFit(d) === 'nodn');
+  if (nodn.length) nudges.push({ lvl: 'info', t: 'No bad-case fall set, so size cannot be checked: ' + nodn.map((d) => d.tk).join(', '), act: 'tab', v: 'book', b: 'Book' });
   const stale = hs.filter((d) => diffDays(d.date, s) > 90);
   if (stale.length) nudges.push({ lvl: 'info', t: 'Thesis not re-checked in 90+ days: ' + stale.map((d) => d.tk).join(', '), act: 'tab', v: 'book', b: 'Book' });
   const n = hs.length + watching().length;
@@ -484,7 +492,7 @@ function vToday() {
 
 /* ---------- Decide ---------- */
 function newDraft(base) {
-  return Object.assign({ type: 'buy', date: todayStr(), tk: '', px: '', size: '', conv: 5, p: 60, up: '', dn: '', thesis: '', variant: '', kill: '',
+  return Object.assign({ type: 'buy', date: todayStr(), tk: '', px: '', size: '', conv: 5, p: 60, up: '', dn: '', kind: 'spec', thesis: '', variant: '', kill: '',
     premortem: '', why: [], planned: '', fw: '', fwWhy: '', clean: '', emo: [], pre: {} }, base || {});
 }
 function loadDraft() { try { const r = localStorage.getItem(DRAFT); if (r) return newDraft(JSON.parse(r)); } catch (e) {} return newDraft(); }
@@ -526,8 +534,12 @@ function vDecide() {
 
   if (ty !== 'watch') {
     h += '<div class="card"><div class="ch">Odds and size</div>' + frange('p', 'How likely am I to be right', 5, 95, 5, '%') +
-      (on(HELD) ? frange('conv', 'Conviction', 1, 10, 1, '/10') : '') +
-      (on(['buy', 'add']) ? '<div class="grid2">' + fnum('up', 'Upside if right (%)', 'e.g. 60') + fnum('dn', 'Downside if wrong (%)', 'e.g. 40') + '</div>' : '') + '</div>';
+      (on(HELD) ? frange('conv', 'Conviction', 1, 10, 1, '/10') +
+        '<div class="q">Size it as a</div>' + seg('fset', 'kind', KINDS, F.kind) +
+        '<div class="when" style="margin-top:4px">Loss budget: ' + fmt(D.settings.lossSpec) + '% of the portfolio for a speculative idea, ' + fmt(D.settings.lossCore) + '% for a core one (set in More).</div>' : '') +
+      (on(HELD) ? '<div class="grid2">' + (on(['buy', 'add']) ? fnum('up', 'Upside if right (%)', 'e.g. 60') : '') +
+        fnum('dn', 'Bad case: how far could it fall (%)', 'Floor, not a stop') + '</div>' +
+        '<div class="when">Use your floor or bear case. A stop-loss does not protect you from a gap down.</div>' : '') + '</div>';
   }
 
   h += '<div class="card"><div class="ch">State of mind</div><div class="q">Right now I feel</div>' + fchips('emo', EMO, F.emo) +
@@ -555,13 +567,13 @@ function warnings(F) {
   if (F.type === 'hold' && F.clean === 'no') w.push({ lvl: 'bad', t: 'You would not buy it today at this size. That reads as a trim, not a hold.' });
   if (fwMismatch(F)) w.push({ lvl: 'bad', t: 'Your framework says ' + F.fw + ' and you are logging ' + tp.t.toUpperCase() + '.' + (F.fwWhy ? '' : ' Write why, or follow it.') });
   if (HELD.includes(F.type) && isNum(size)) {
-    if (size > set.maxPos) w.push({ lvl: 'bad', t: 'Size ' + fmt(size) + '% is above your ' + set.maxPos + '% position cap.' });
-    if (isNum(conv)) {
-      const t = target(conv), fit = sizeFit({ size, conv });
-      if (fit === 'over') w.push({ lvl: 'warn', t: 'Size ' + fmt(size) + '% is well above the ~' + fmt(t) + '% that conviction ' + conv + '/10 supports.' });
-      else if (fit === 'under') w.push({ lvl: 'warn', t: 'Conviction ' + conv + '/10 supports ~' + fmt(t) + '%, but this is ' + fmt(size) + '%. Size up, or lower the score.' });
-      else w.push({ lvl: 'good', t: 'Size fits conviction (~' + fmt(t) + '% for ' + conv + '/10).' });
-    }
+    if (size > set.maxPos) w.push({ lvl: 'bad', t: 'Size ' + fmt(size) + '% is above your ' + set.maxPos + '% hard cap.' });
+    const d = { size, dn, kind: F.kind }, fit = sizeFit(d), b = budgetFor(F.kind), r = atRisk(d), fits = sizeFor(d);
+    if (fit === 'nodn') w.push({ lvl: 'warn', t: 'Add the bad-case fall to check this size against your loss budget.' });
+    else if (fit === 'over') w.push({ lvl: 'bad', t: 'In the bad case this costs ' + fmt(r) + '% of the portfolio. Your budget for a ' + kindT(F.kind) + ' idea is ' + fmt(b) + '%, which means a size of about ' + fmt(fits) + '%.' });
+    else if (fit === 'under') w.push({ lvl: 'info', t: 'Bad case costs ' + fmt(r) + '%, under half your ' + fmt(b) + '% budget. Room to go up to about ' + fmt(fits) + '% if the work supports it.' });
+    else if (fit === 'ok') w.push({ lvl: 'good', t: 'Sized to budget: the bad case costs ' + fmt(r) + '% of the portfolio (budget ' + fmt(b) + '%).' });
+    if (isNum(conv) && conv >= 8 && F.kind === 'spec') w.push({ lvl: 'info', t: 'Conviction ' + conv + '/10 on a speculative idea. If the work really supports it, size it as core instead.' });
   }
   if ((F.type === 'buy' || F.type === 'watch') && tk && !activeNames().has(tk)) {
     const n = activeNames().size;
@@ -593,7 +605,7 @@ function submit() {
   const w = warnings(F), cool = willCool(w), now = new Date();
   const d = { id: uid(), at: now.toISOString(), date: F.date || todayStr(), type: F.type, tk,
     px: num(F.px), size: F.type === 'sell' ? 0 : num(F.size), conv: HELD.includes(F.type) ? num(F.conv) : null,
-    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(F.dn),
+    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(F.dn), kind: HELD.includes(F.type) ? (F.kind || 'spec') : '',
     thesis: F.thesis.trim(), variant: (F.variant || '').trim(), kill: (F.kill || '').trim(), premortem: (F.premortem || '').trim(),
     why: F.why || [], planned: F.planned || '', fw: F.fw || '', fwWhy: (F.fwWhy || '').trim(), clean: F.clean || '', emo: F.emo || [], pre: F.pre || {},
     flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t),
@@ -606,36 +618,37 @@ function submit() {
 }
 
 /* ---------- Book ---------- */
-function sizeChart(list) {
-  const pts = list.filter((d) => isNum(num(d.size)) && isNum(num(d.conv)));
-  if (!pts.length) return '<div class="small mute">Add size and conviction to holdings to see this.</div>';
-  const max = D.settings.maxPos, ymax = Math.max(max * 1.2, ...pts.map((d) => num(d.size) * 1.1));
-  const W = 320, H = 210, L = 30, R = 10, Tp = 10, B = 28;
-  const x = (c) => L + (c - 1) / 9 * (W - L - R), y = (v) => Tp + (1 - Math.min(v, ymax) / ymax) * (H - Tp - B);
-  let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Conviction versus position size">';
-  const step = ymax > 30 ? 10 : 5;
-  for (let v = 0; v <= ymax; v += step) g += '<line class="grid" x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '"/><text class="lab" x="' + (L - 4) + '" y="' + (y(v) + 3) + '" text-anchor="end">' + v + '%</text>';
-  g += '<polygon class="band" points="' + [[1, 0.5], [10, 0.5], [10, 1.5], [1, 1.5]].map(([c, f]) => x(c) + ',' + y(target(c) * f)).join(' ') + '"/>';
-  g += '<line class="tgt" x1="' + x(1) + '" y1="' + y(target(1)) + '" x2="' + x(10) + '" y2="' + y(target(10)) + '"/>';
-  for (let c = 1; c <= 10; c++) g += '<text class="lab" x="' + x(c) + '" y="' + (H - B + 14) + '" text-anchor="middle">' + c + '</text>';
-  g += '<text class="lab" x="' + ((L + W - R) / 2) + '" y="' + (H - 2) + '" text-anchor="middle">Conviction</text>';
-  pts.forEach((d) => {
-    const cx = x(num(d.conv)), cy = y(num(d.size)), off = sizeFit(d) !== 'ok';
-    g += '<circle class="pt' + (off ? ' off' : '') + '" cx="' + cx + '" cy="' + cy + '" r="5"/><text class="tk" x="' + (cx + 7) + '" y="' + (cy + 3) + '">' + esc(d.tk) + '</text>';
+function riskChart(list) {
+  const rows = list.map((d) => ({ d, r: atRisk(d), b: budgetFor(d.kind) })).filter((x) => isNum(x.r)).sort((a, b) => b.r - a.r);
+  if (!rows.length) return '<div class="small mute">Add a bad-case fall to your holdings to see this.</div>';
+  const xmax = Math.max(...rows.map((x) => Math.max(x.r, x.b))) * 1.18;
+  const W = 320, L = 52, R = 12, rowH = 24, Tp = 4, H = Tp + rows.length * rowH + 20;
+  const x = (v) => L + v / xmax * (W - L - R);
+  const step = xmax > 16 ? 4 : xmax > 8 ? 2 : xmax > 4 ? 1 : 0.5;
+  let g = '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Share of the portfolio lost if each holding hits its bad case, against its loss budget">';
+  for (let v = 0; v <= xmax; v += step) g += '<line class="grid" x1="' + x(v) + '" x2="' + x(v) + '" y1="' + Tp + '" y2="' + (H - 18) + '"/><text class="lab" x="' + x(v) + '" y="' + (H - 5) + '" text-anchor="middle">' + fmt(v) + '%</text>';
+  rows.forEach((o, i) => {
+    const y = Tp + i * rowH + 4, over = o.r > o.b * 1.1;
+    g += '<text class="tk" x="' + (L - 6) + '" y="' + (y + 11) + '" text-anchor="end">' + esc(o.d.tk) + '</text>' +
+      '<rect class="bar' + (over ? ' over' : '') + '" x="' + x(0) + '" y="' + y + '" width="' + Math.max(1, x(o.r) - x(0)) + '" height="14" rx="3"/>' +
+      '<line class="bud" x1="' + x(o.b) + '" x2="' + x(o.b) + '" y1="' + (y - 3) + '" y2="' + (y + 17) + '"/>';
+    const lx = Math.max(x(o.r), x(o.b)) + 4, inside = lx > W - R - 30;
+    g += '<text class="lab" x="' + (inside ? x(o.r) - 4 : lx) + '" y="' + (y + 11) + '" text-anchor="' + (inside ? 'end' : 'start') + '"' + (inside ? ' style="fill:var(--on-accent)"' : '') + '>' + fmt(o.r) + '%</text>';
   });
-  return g + '</svg><div class="legend"><span><i style="background:var(--good-soft);border:1px solid var(--good)"></i>Size that fits the conviction</span><span><i style="background:var(--bad)"></i>Mismatch</span></div>';
+  return g + '</svg><div class="legend"><span>Bar = share of the portfolio lost if the bad case happens</span><span><i style="border-radius:0;width:2px;height:12px;background:var(--warn)"></i>Loss budget (speculative ' + fmt(D.settings.lossSpec) + '%, core ' + fmt(D.settings.lossCore) + '%)</span></div>';
 }
 function holdCard(d) {
   const s = todayStr(), age = diffDays(d.date, s), sz = num(d.size), fit = sizeFit(d);
   const flags = [];
   if (fwMismatch(d)) flags.push('<span class="chip bad">Framework says ' + esc(d.fw) + '</span>');
-  if (fit === 'over') flags.push('<span class="chip bad">Too big for ' + d.conv + '/10</span>');
-  if (fit === 'under') flags.push('<span class="chip warn">Small for ' + d.conv + '/10</span>');
+  if (fit === 'over') flags.push('<span class="chip bad">Bad case ' + fmt(atRisk(d)) + '% vs ' + fmt(budgetFor(d.kind)) + '% budget → size ~' + fmt(sizeFor(d)) + '%</span>');
+  if (fit === 'under') flags.push('<span class="chip info">Room to size up to ~' + fmt(sizeFor(d)) + '%</span>');
+  if (fit === 'nodn') flags.push('<span class="chip warn">No bad case set</span>');
   if (d.clean === 'no') flags.push('<span class="chip bad">Fails clean-slate test</span>');
   if (age > 90) flags.push('<span class="chip warn">Thesis ' + age + ' days old</span>');
   if (!d.kill) flags.push('<span class="chip warn">No kill criteria</span>');
   return '<div class="card"><div class="ch"><span>' + esc(d.tk) + ' <span class="chip">' + T(d.type).t + '</span></span><span class="small mute">' +
-    (isNum(sz) ? fmt(sz) + '%' : '') + (isNum(num(d.conv)) ? ' · ' + d.conv + '/10' : '') + '</span></div>' +
+    (isNum(sz) ? fmt(sz) + '%' : '') + (isNum(num(d.conv)) ? ' · ' + d.conv + '/10' : '') + (d.kind ? ' · ' + kindT(d.kind) : '') + '</span></div>' +
     (flags.length ? '<div class="flags">' + flags.join('') + '</div>' : '') +
     '<div class="small">' + esc(d.thesis) + '</div>' + (d.kill ? '<div class="kill"><b>Kill if</b> ' + esc(d.kill) + '</div>' : '') +
     '<div class="when">Last decided ' + nice(d.date) + ' (' + plural(age, 'day') + ' ago)</div>' +
@@ -649,8 +662,9 @@ function vBook() {
     '<div class="small ' + (n > cap ? '' : 'mute') + '">' + n + ' of ' + cap + ' idea slots used.' + (n > cap ? ' <b>Over the cap: something has to go.</b>' : '') + '</div>';
   if (!n && !closed.length) return h + '<div class="note info" style="margin-top:12px">Log a Buy, Hold or Watch decision and it appears here.</div>';
   if (hs.length) {
-    const total = hs.reduce((a, d) => a + (num(d.size) || 0), 0);
-    h += '<h3 class="sec">Conviction vs size</h3><div class="card">' + sizeChart(hs) + '<div class="when" style="margin-top:6px">Target size = your ' + D.settings.maxPos + '% cap × conviction / 10. Holdings add up to ' + fmt(total) + '% of the portfolio.</div></div>';
+    const total = hs.reduce((a, d) => a + (num(d.size) || 0), 0), risk = hs.reduce((a, d) => a + (atRisk(d) || 0), 0);
+    h += '<h3 class="sec">Money at risk</h3><div class="card">' + riskChart(hs) +
+      '<div class="when" style="margin-top:6px">Right size = loss budget ÷ bad-case fall, capped at ' + fmt(D.settings.maxPos) + '%. Holdings add up to ' + fmt(total) + '% of the portfolio; if every bad case happened together you would lose ' + fmt(risk) + '%. Correlated names (one sector, one theme) tend to hit their bad cases together.</div></div>';
     h += '<h3 class="sec">Holding</h3>' + hs.map(holdCard).join('');
   }
   if (ws.length) {
@@ -708,6 +722,7 @@ function detailHtml(d) {
   const add = (k, v) => { if (v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) kv.push('<dt>' + k + '</dt><dd>' + esc(v) + '</dd>'); };
   add('Price', d.px); add('Size after', isNum(num(d.size)) ? d.size + '%' : ''); add('Conviction', isNum(num(d.conv)) ? d.conv + '/10' : '');
   add('Sure', isNum(num(d.p)) ? d.p + '%' : ''); add('Up / down', isNum(num(d.up)) || isNum(num(d.dn)) ? fmt(num(d.up)) + '% / ' + fmt(num(d.dn)) + '%' : '');
+  add('Sized as', d.kind ? kindT(d.kind) + (isNum(atRisk(d)) ? ', bad case costs ' + fmt(atRisk(d)) + '% of the portfolio' : '') : '');
   add('Thesis', d.thesis); add('Variant view', d.variant); add('Kill if', d.kill); add('Pre-mortem', d.premortem);
   add('Why sell', (d.why || []).map((w) => (SELLWHY.find((x) => x.id === w) || {}).t).join(', '));
   add('Planned', d.planned === 'yes' ? 'Yes' : d.planned === 'no' ? 'No' : ''); add('Framework', d.fw ? d.fw + (d.fwWhy ? ': ' + d.fwWhy : '') : '');
@@ -826,7 +841,11 @@ function vMore() {
     '<label class="field"><span>Trade budget per month (buys, adds, trims, sells)</span><input type="number" inputmode="numeric" min="1" max="100" data-act="setting" data-k="tradeBudget" value="' + st.tradeBudget + '"></label>' +
     '<label class="field"><span>Cool-off for unplanned or hot trades (hours)</span><input type="number" inputmode="numeric" min="0" max="168" data-act="setting" data-k="coolHours" value="' + st.coolHours + '"></label>' +
     '<label class="field"><span>Idea cap (held plus watching)</span><input type="number" inputmode="numeric" min="1" max="100" data-act="setting" data-k="ideaCap" value="' + st.ideaCap + '"></label>' +
-    '<label class="field"><span>Maximum position size (% of portfolio)</span><input type="number" inputmode="decimal" min="1" max="100" data-act="setting" data-k="maxPos" value="' + st.maxPos + '"></label></div>';
+    '<div class="q">Sizing: how much one idea may cost you if its bad case happens</div>' +
+    '<div class="grid2"><label class="field"><span>Speculative idea (% of portfolio)</span><input type="number" inputmode="decimal" step="0.1" min="0.1" max="20" data-act="setting" data-k="lossSpec" value="' + st.lossSpec + '"></label>' +
+    '<label class="field"><span>Core idea (% of portfolio)</span><input type="number" inputmode="decimal" step="0.1" min="0.1" max="20" data-act="setting" data-k="lossCore" value="' + st.lossCore + '"></label></div>' +
+    '<div class="when">Set these on a quiet day. Right size = loss budget ÷ how far the stock could fall in the bad case.</div>' +
+    '<label class="field"><span>Hard cap on any one position (% of portfolio)</span><input type="number" inputmode="decimal" min="1" max="100" data-act="setting" data-k="maxPos" value="' + st.maxPos + '"></label></div>';
 
   h += '<div class="card"><div class="ch">Reminders</div><div class="small">Adds three repeating events to your calendar: a 2-minute check-in at 9pm, the weekly review on Sunday at 7pm, and the monthly scorecard on the first Saturday.</div><div class="actions"><button class="btn" data-act="ics">Add to calendar</button></div></div>';
 
@@ -988,7 +1007,7 @@ document.addEventListener('click', (e) => {
   if (a === 'fclear') { if (!confirm('Clear this form?')) return; draft = newDraft(); localStorage.removeItem(DRAFT); render(); return; }
   if (a === 'recheck' || a === 'trade') {
     const d = D.decisions[k]; if (!d) return;
-    const keep = { tk: d.tk, size: d.size == null ? '' : d.size, conv: d.conv || 5, p: d.p || 60, kill: d.kill, fw: d.fw };
+    const keep = { tk: d.tk, size: d.size == null ? '' : d.size, conv: d.conv || 5, p: d.p || 60, kill: d.kill, fw: d.fw, dn: d.dn == null ? '' : d.dn, kind: d.kind || 'spec' };
     draft = a === 'recheck' ? newDraft(Object.assign(keep, { type: 'hold', thesis: d.thesis, variant: d.variant })) : newDraft(Object.assign(keep, { type: d.type === 'watch' ? 'buy' : 'add' }));
     keepDraft(); view = 'decide'; render(); window.scrollTo(0, 0); return;
   }
