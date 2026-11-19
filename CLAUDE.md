@@ -9,6 +9,13 @@ no live market data (the user types prices in).
 - **Decide** (before acting): thesis, variant view, kill criteria, P(right), conviction, size, emotions,
   planned or not, framework verdict, pre-flight checklist. Unplanned, hot-state, over-budget or fear-sells
   go into a cool-off (`settings.coolHours`); "Do it anyway" is logged as `override`.
+- **Decide is side-aware (v4):** it opens on a type picker (put money in / take money out / re-check / no
+  position). Trim, Sell and Hold get their own form: shares now/after, why-sell chips, clean-slate test, the way
+  back in, a **value check** (my value, bull value, bad-case price -> price/value, bull weight needed, right size,
+  dollar regret table), a step-by-step **sale plan** (`tranches`, shown on Today when due; skipping needs a written
+  fact), and a "Before you sell/hold" checklist (`PRE_SELL`, `PRE_HOLD`). A trim or sale that follows a rule or the
+  framework (`riskReducing`) is never cooled off; fear-only sales still are. `settings.port` (optional portfolio
+  value) turns shares into % of portfolio via `derive()`.
 - **Today**: daily check-in (state, urge, rotating prompt), rule of the day (Leitner boxes, weighted toward
   the categories of mistakes tagged in reviews), nudges (reviews due, framework gaps, size/conviction
   mismatch, stale theses, idea cap).
@@ -39,8 +46,8 @@ no live market data (the user types prices in).
    Any extra `<script>` tag must carry an attribute so this regex still finds the app code.
 3. **Preview at phone width before shipping** (launch config `investor-coach`, port 8766), seed test data
    via localStorage, check `document.documentElement.scrollWidth === 375`, then clear it.
-4. **Data shape is append-friendly:** `decisions[id] = {id, at, date, type, tk, px, size, conv, p, up, dn, kind,
-   thesis, variant, kill, premortem, why[], planned, fw, fwWhy, clean, emo[], pre{}, flags[], status
+4. **Data shape is append-friendly:** `decisions[id] = {id, at, date, type, tk, px, size, conv, p, up, dn, kind, shNow, shAfter, mine, bull, bad, back,
+   tranches[{n, of, date, sh, st(''|done|skip), why, at}], thesis, variant, kill, premortem, why[], planned, fw, fwWhy, clean, emo[], pre{}, flags[], status
    (cooling|done|dropped), coolUntil, doneAt, droppedAt, override, cps{30|90|365: {at, px, th, pr, tags[], note}}}`;
    `days[YYYY-MM-DD] = {state, urge, note, card, cardDone}`; `weeks[monday] = {emo, rule, change, at}`;
    `cards[id] = {box, due, off}`; `myCards[id] = {id, cat, t, why, pre, deleted}`; `deleted[id] = iso`;

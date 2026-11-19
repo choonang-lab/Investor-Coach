@@ -153,7 +153,7 @@ ol.steps li{margin:5px 0}
 <nav id="tabbar"></nav>
 <div id="toast"></div>
 <script>
-const BUILD = 'v3';
+const BUILD = 'v4';
 const KEY = 'ic_data';
 const GHKEY = 'ic_gh';
 const DIRTY = 'ic_dirty';
@@ -402,7 +402,8 @@ function emoNames(list) { return (list || []).map((e) => { const x = EMO.find((m
 
 const SELLWHY = [
   { id: 'broken', t: 'Thesis broken' }, { id: 'target', t: 'Reached fair value' }, { id: 'better', t: 'Better use of capital' },
-  { id: 'size', t: 'Too big for my conviction' }, { id: 'fear', t: 'Price is falling, I am scared', hot: 1 }, { id: 'cash', t: 'Need the cash' }, { id: 'tax', t: 'Tax' }
+  { id: 'size', t: 'Too big for my loss budget' }, { id: 'rule', t: 'A pre-set rule fired' }, { id: 'framework', t: 'My framework says so' },
+  { id: 'fear', t: 'Price is falling, I am scared', hot: 1 }, { id: 'cash', t: 'Need the cash' }, { id: 'tax', t: 'Tax' }
 ];
 
 const TAGS = [
@@ -447,7 +448,7 @@ function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
 
 /* ---------- State ---------- */
 function blank() {
-  return { v: 1, settings: { tradeBudget: 6, coolHours: 24, ideaCap: 10, maxPos: 15, lossSpec: 1, lossCore: 2 },
+  return { v: 1, settings: { tradeBudget: 6, coolHours: 24, ideaCap: 10, maxPos: 15, lossSpec: 1, lossCore: 2, port: '' },
     decisions: {}, deleted: {}, days: {}, weeks: {}, cards: {}, myCards: {}, learn: { start: null, done: {}, drills: {}, checks: {} }, lastBackup: null, savedAt: null };
 }
 function fill(d, b) {
@@ -597,6 +598,17 @@ function vToday() {
       '<button class="btn' + (ready ? ' ghost' : '') + '" data-act="cdrop" data-k="' + d.id + '">Drop it</button></div></div>';
   });
 
+  all.forEach((d) => {
+    if (d.status !== 'done' || !d.tranches) return;
+    d.tranches.forEach((t, i) => {
+      if (t.st || t.date > s) return;
+      const late = diffDays(t.date, s);
+      h += '<div class="card cool"><div class="kicker">Step ' + t.n + ' of ' + t.of + ' due' + (late > 0 ? ' \u00b7 ' + plural(late, 'day') + ' late' : '') + '</div><div class="h2">' + T(d.type).t + ' ' + (t.sh ? t.sh.toLocaleString('en-US') + ' ' : '') + esc(d.tk) + '</div>' +
+        '<div class="small">Planned for ' + nice(t.date) + '. You decided this on ' + nice(d.date) + ': ' + esc(d.thesis) + '</div>' +
+        '<div class="actions"><button class="btn" data-act="trdo" data-k="' + d.id + '" data-v="' + i + '">Done</button><button class="btn ghost" data-act="trskip" data-k="' + d.id + '" data-v="' + i + '">Skip (needs a new fact)</button></div></div>';
+    });
+  });
+
   const nudges = [];
   const due = dueList();
   if (due.length) nudges.push({ lvl: 'warn', t: plural(due.length, 'decision review') + ' due', act: 'tab', v: 'review', b: 'Review' });
@@ -648,18 +660,90 @@ function vToday() {
 }
 
 /* ---------- Decide ---------- */
+const TYPE_ORDER = ['buy', 'add', 'trim', 'sell', 'hold', 'pass', 'watch'];
+const TYPE_GROUPS = [
+  { t: 'Put money in', ids: ['buy', 'add'] },
+  { t: 'Take money out', ids: ['trim', 'sell'] },
+  { t: 'Re-check what I own', ids: ['hold'] },
+  { t: 'No position', ids: ['pass', 'watch'] }
+];
+const TYPE_D = { buy: 'Open a new position', add: 'Increase one I own', trim: 'Reduce one I own', sell: 'Exit completely', hold: 'Keep it as it is, and say why', pass: 'Decide not to buy', watch: 'Follow it for later' };
+const SIDE = { buy: 'in', add: 'in', trim: 'out', sell: 'out', hold: 'hold', pass: 'none', watch: 'none' };
+const TITLE = { buy: 'Log a buy', add: 'Log an add', trim: 'Log a trim', sell: 'Log a sale', hold: 'Re-check a holding', pass: 'Log a pass', watch: 'Add to watch list' };
+const LOGL = { buy: 'Log the buy', add: 'Log the add', trim: 'Log the trim', sell: 'Log the sale', hold: 'Log the hold', pass: 'Log the pass', watch: 'Add to watch list' };
+const KICK = { in: 'Before you buy', out: 'Before you sell', hold: 'Before you hold', none: 'Before you pass' };
+const P_LBL = { buy: 'How likely is the thesis to play out', add: 'How likely is the thesis to play out', trim: 'How likely is selling now to be right', sell: 'How likely is selling now to be right', hold: 'How likely is holding at this size to be right', pass: 'How likely is passing to be right' };
+const PRE_SELL = ['s1', 's2', 's3', 'i2', 's9'];
+const PRE_HOLD = ['s1', 's3', 'm5', 'a14', 'm6', 'i7'];
+function preFor(ty) {
+  if (ty === 'buy' || ty === 'add') return preCards();
+  const ids = ty === 'hold' ? PRE_HOLD : (ty === 'trim' || ty === 'sell') ? PRE_SELL : [];
+  const all = allCards(); return ids.map((id) => all.find((c) => c.id === id)).filter(Boolean);
+}
 function newDraft(base) {
-  return Object.assign({ type: 'buy', date: todayStr(), tk: '', px: '', size: '', conv: 5, p: 60, up: '', dn: '', kind: 'spec', thesis: '', variant: '', kill: '',
-    premortem: '', why: [], planned: '', fw: '', fwWhy: '', clean: '', emo: [], pre: {} }, base || {});
+  return Object.assign({ type: '', date: todayStr(), tk: '', px: '', size: '', conv: 5, p: 60, up: '', dn: '', kind: 'spec', thesis: '', variant: '', kill: '',
+    premortem: '', why: [], planned: '', fw: '', fwWhy: '', clean: '', emo: [], pre: {},
+    shNow: '', shAfter: '', mine: '', bull: '', bad: '', back: '', tr: '1', gap: '3' }, base || {});
 }
 function loadDraft() { try { const r = localStorage.getItem(DRAFT); if (r) return newDraft(JSON.parse(r)); } catch (e) {} return newDraft(); }
 function keepDraft() { try { localStorage.setItem(DRAFT, JSON.stringify(draft)); } catch (e) {} }
 let draft = loadDraft();
-
+function portVal() { const p = num(D.settings.port); return isNum(p) && p > 0 ? p : null; }
+/* Fills size and bad-case fall from shares and prices on sell-side and hold decisions. */
+function derive(F) {
+  const x = Object.assign({}, F), px = num(F.px), port = portVal(), side = SIDE[F.type];
+  x.shNowN = num(F.shNow);
+  x.shAfterN = F.type === 'sell' ? 0 : F.type === 'hold' ? num(F.shNow) : num(F.shAfter);
+  if (side === 'out' || side === 'hold') {
+    const bad = num(F.bad);
+    if (isNum(px) && px > 0 && isNum(bad) && bad < px) x.dn = (px - bad) / px * 100;
+    if (port) x.size = isNum(px) && isNum(x.shAfterN) ? x.shAfterN * px / port * 100 : null;
+    if (port && isNum(px) && isNum(x.shNowN)) x.sizeNow = x.shNowN * px / port * 100;
+  }
+  return x;
+}
+function riskReducing(F) { return (F.type === 'trim' || F.type === 'sell') && (FAM[F.fw] === 'down' || (F.why || []).some((w) => ['rule', 'framework', 'size', 'broken'].includes(w))); }
+function sellCalc(F) {
+  const x = derive(F), px = num(F.px), mine = num(F.mine), bull = num(F.bull), bad = num(F.bad), port = portVal(), rows = [];
+  if (isNum(px) && isNum(mine) && mine > 0) rows.push('The price is <b>' + fmt(px / mine, 1) + '×</b> your value of $' + fmt(mine, 2) + '.');
+  if (isNum(px) && isNum(mine) && isNum(bull) && bull > mine) {
+    if (px > mine) { const need = (px - mine) / (bull - mine) * 100; rows.push('To justify this price you need to be <b>' + fmt(need, 0) + '% sure</b> the bull case ($' + fmt(bull, 2) + ') is right' + (need > 100 ? ': more than certain' : '') + '.'); }
+    else rows.push('The price is at or below your value, so the bull case is a bonus, not a requirement.');
+  }
+  let rsh = null;
+  if (isNum(x.dn)) {
+    const b = budgetFor(F.kind), right = Math.min(D.settings.maxPos, b / (x.dn / 100));
+    rsh = port && isNum(px) ? Math.floor(right / 100 * port / px) : null;
+    rows.push((F.type === 'sell' ? 'If you kept a stake, the' : 'The') + ' right size for a ' + kindT(F.kind) + ' idea is <b>' + fmt(right) + '%</b> of the portfolio' + (isNum(rsh) ? ' (about ' + rsh.toLocaleString('en-US') + ' shares)' : '') + ': a ' + fmt(b) + '% loss budget ÷ a ' + fmt(x.dn, 0) + '% bad-case fall.');
+  }
+  if (isNum(x.sizeNow)) rows.push('You hold ' + x.shNowN.toLocaleString('en-US') + ' shares = <b>' + fmt(x.sizeNow) + '%</b> of the portfolio' + (F.type !== 'hold' && isNum(x.size) ? ', <b>' + fmt(x.size) + '%</b> after' : '') + '.');
+  const a = x.shNowN, b2 = F.type === 'hold' ? rsh : x.shAfterN;
+  const outs = [['Bull', bull], ['My value', mine], ['Bad case', bad]].filter((o) => isNum(o[1]));
+  let tbl = '';
+  if (isNum(px) && isNum(a) && isNum(b2) && outs.length && a !== b2) {
+    tbl = '<div class="q">The two regrets in dollars</div><table class="tbl"><tr><th>If it goes to</th><th class="n">Keep ' + a.toLocaleString('en-US') + '</th><th class="n">' + (F.type === 'hold' ? 'At right size ' : 'Keep ') + b2.toLocaleString('en-US') + '</th></tr>' +
+      outs.map((o) => { const g1 = a * (o[1] - px), g2 = b2 * (o[1] - px); return '<tr><td>' + o[0] + ' $' + fmt(o[1], 2) + '</td><td class="n ' + pctCls(g1) + '">' + money(g1) + '</td><td class="n ' + pctCls(g2) + '">' + money(g2) + '</td></tr>'; }).join('') + '</table>';
+  }
+  if (!rows.length && !tbl) return '<div class="small mute">Fill in the price, your value, the bull value and the bad-case price to see the numbers.</div>';
+  return rows.map((r) => '<div class="tw"><div class="dot"></div><div class="small">' + r + '</div></div>').join('') + tbl;
+}
+function trancheList(F, start) {
+  const n = Number(F.tr) || 1, gap = Number(F.gap) || 3, a = num(F.shNow), b = F.type === 'sell' ? 0 : num(F.shAfter);
+  if (n < 2) return [];
+  const qty = isNum(a) && isNum(b) && a > b ? a - b : null, each = qty === null ? null : Math.floor(qty / n), out = [];
+  for (let i = 0; i < n; i++) out.push({ n: i + 1, of: n, date: addDays(start, i * gap), sh: qty === null ? null : (i < n - 1 ? each : qty - each * (n - 1)), st: '' });
+  return out;
+}
+function trancheHtml() {
+  const list = trancheList(draft, draft.date || todayStr());
+  if (!list.length) return '<div class="when">Selling everything in one go. Splitting into steps on fixed dates makes a hard sale easier to follow through.</div>';
+  return '<div class="small" style="margin-top:6px">' + list.map((t) => 'Step ' + t.n + ': ' + (t.sh ? t.sh.toLocaleString('en-US') + ' shares' : '1/' + t.of + ' of the sale') + ' on ' + nice(t.date)).join('<br>') + '</div>' +
+    '<div class="when">Each step shows on Today on its date. Skipping one needs a new fact.</div>';
+}
 const THESIS_LBL = {
   buy: ['Thesis in one line', 'Why this, why now, at this price'], add: ['Why add now?', 'What changed since the last decision'],
-  hold: ['Why hold?', 'The thesis as it stands today'], trim: ['Why trim?', 'What changed, or why the size is wrong'],
-  sell: ['Why sell, in one line', 'Thesis broken? Better idea? Be honest'], pass: ['Why pass?', 'What would have to change for a yes'],
+  hold: ['Why hold at this size?', 'The thesis as it stands today'], trim: ['What changed, or why is the size wrong?', 'One line: a fact or a number, not the price move'],
+  sell: ['Why exit completely?', 'Thesis broken? Better idea? Be honest'], pass: ['Why pass?', 'What would have to change for a yes'],
   watch: ['What would make this a buy?', 'The price or event that turns it on']
 };
 function ftext(k, label, ph, multi) {
@@ -675,103 +759,153 @@ function fchips(k, opts, arr) {
   return '<div class="chips">' + opts.map((o) => { const on = (arr || []).includes(o.id); return '<button class="chipb' + (on ? ' on' + (o.hot ? ' hot' : '') : '') + '" data-act="ftog" data-k="' + k + '" data-v="' + o.id + '">' + esc(o.t) + '</button>'; }).join('') + '</div>';
 }
 function vDecide() {
-  const F = draft, ty = F.type, tp = T(ty), on = (list) => list.includes(ty);
-  let h = '<div class="kicker">Before you act</div><div class="h2">Log a decision</div><div class="small mute" style="margin-bottom:12px">Write it before you do it. Memory rewrites the reasons afterwards.</div>';
-  h += '<div class="card"><div class="typegrid">' + TYPES.map((x) => '<button class="' + (ty === x.id ? 'on' : '') + '" data-act="fset" data-k="type" data-v="' + x.id + '">' + x.t + '</button>').join('') + '</div>' +
+  const F = draft, ty = F.type, side = SIDE[ty], on = (list) => list.includes(ty), port = portVal();
+  if (!ty || !side) {
+    return '<div class="kicker">Before you act</div><div class="h2">What are you deciding?</div><div class="small mute" style="margin-bottom:4px">Write it before you do it. Memory rewrites the reasons afterwards.</div>' +
+      TYPE_GROUPS.map((g) => '<h3 class="sec">' + g.t + '</h3><div class="card">' + g.ids.map((id) =>
+        '<div class="check" data-act="fset" data-k="type" data-v="' + id + '"><div class="lbl"><b>' + T(id).t + '</b><div class="when">' + TYPE_D[id] + '</div></div><span class="mute">›</span></div>').join('') + '</div>').join('');
+  }
+  let h = '<div class="kicker">' + (ty === 'watch' ? 'Before you watch' : KICK[side]) + '</div><div class="h2">' + TITLE[ty] + '</div><div class="small mute" style="margin-bottom:12px">Write it before you do it. Memory rewrites the reasons afterwards.</div>';
+
+  h += '<div class="card"><div class="typegrid">' + TYPE_ORDER.map((id) => '<button class="' + (ty === id ? 'on' : '') + '" data-act="fset" data-k="type" data-v="' + id + '">' + T(id).t + '</button>').join('') + '</div>' +
     '<div class="grid2"><label class="field"><span>Ticker</span><input type="text" autocapitalize="characters" autocorrect="off" spellcheck="false" data-f="tk" value="' + esc(F.tk) + '"></label>' +
     '<label class="field"><span>Date (back-fill allowed)</span><input type="date" max="' + todayStr() + '" data-f="date" value="' + esc(F.date) + '"></label></div>' +
-    '<div class="grid2">' + fnum('px', 'Price', '') + (on(HELD) ? fnum('size', 'Size after (% of portfolio)', '') : '') + '</div></div>';
+    '<div class="grid2">' + fnum('px', 'Price now', '') +
+    (side === 'out' || side === 'hold' ? fnum('shNow', 'Shares I hold now', '') : on(['buy', 'add']) ? fnum('size', 'Size after (% of portfolio)', '') : '') + '</div>' +
+    (ty === 'trim' ? '<div class="grid2">' + fnum('shAfter', 'Shares after the trim', '') + (port ? '' : fnum('size', 'Size after (% of portfolio)', '')) + '</div>' : '') +
+    (ty === 'hold' && !port ? fnum('size', 'Size now (% of portfolio)', '') : '') +
+    ((side === 'out' || side === 'hold') && !port ? '<div class="when">Add your portfolio value in More and sizes are worked out from shares.</div>' : '') + '</div>';
 
-  h += '<div class="card"><div class="ch">The thinking</div>' + ftext('thesis', THESIS_LBL[ty][0], THESIS_LBL[ty][1], true) +
-    (on(['buy', 'add', 'watch']) ? ftext('variant', 'What does the market believe, and why is it wrong?', 'No variant view, no edge', true) : '') +
-    (on(['buy', 'add', 'hold', 'trim', 'watch']) ? ftext('kill', 'Kill criteria: what would prove me wrong?', 'Specific and checkable: a number, a date, an event', true) : '') +
-    (on(['sell', 'trim']) ? '<div class="q">Why sell?</div>' + fchips('why', SELLWHY, F.why) : '') +
-    (ty === 'hold' ? '<div class="q">Clean slate: holding cash instead, would I buy it today at this size?</div>' + seg('fset', 'clean', [{ id: 'yes', t: 'Yes' }, { id: 'no', t: 'No' }], F.clean) : '') +
-    (on(['buy', 'add']) ? '<details' + (F.premortem ? ' open' : '') + '><summary class="q">+ Pre-mortem (recommended)</summary>' + ftext('premortem', 'It is two years later and this lost half. What happened?', '', true) + '</details>' : '') + '</div>';
+  if (side === 'out') {
+    h += '<div class="card"><div class="ch">Why sell</div>' + fchips('why', SELLWHY, F.why) + ftext('thesis', THESIS_LBL[ty][0], THESIS_LBL[ty][1], true) +
+      '<div class="q">Clean slate: holding cash instead, would I buy it today at its current size?</div>' + seg('fset', 'clean', [{ id: 'yes', t: 'Yes' }, { id: 'no', t: 'No' }], F.clean) +
+      ftext('back', 'The way back in: what price or fact would make me buy again?', 'e.g. below $26, or results showing the bull path', true) + '</div>';
+  } else if (side === 'hold') {
+    h += '<div class="card"><div class="ch">The thinking</div>' + ftext('thesis', THESIS_LBL[ty][0], THESIS_LBL[ty][1], true) +
+      '<div class="q">Clean slate: holding cash instead, would I buy it today at this size?</div>' + seg('fset', 'clean', [{ id: 'yes', t: 'Yes' }, { id: 'no', t: 'No' }], F.clean) +
+      ftext('kill', 'Kill criteria: what would prove me wrong?', 'Specific and checkable: a number, a date, an event', true) + '</div>';
+  } else {
+    h += '<div class="card"><div class="ch">The thinking</div>' + ftext('thesis', THESIS_LBL[ty][0], THESIS_LBL[ty][1], true) +
+      (on(['buy', 'add', 'watch']) ? ftext('variant', 'What does the market believe, and why is it wrong?', 'No variant view, no edge', true) : '') +
+      (on(['buy', 'add', 'watch']) ? ftext('kill', 'Kill criteria: what would prove me wrong?', 'Specific and checkable: a number, a date, an event', true) : '') +
+      (on(['buy', 'add']) ? '<details' + (F.premortem ? ' open' : '') + '><summary class="q">+ Pre-mortem (recommended)</summary>' + ftext('premortem', 'It is two years later and this lost half. What happened?', '', true) + '</details>' : '') + '</div>';
+  }
+
+  if (side === 'out' || side === 'hold') {
+    h += '<div class="card"><div class="ch">Value check</div><div class="grid2">' + fnum('mine', 'My value per share', '') + fnum('bull', 'Bull-case value', '') + '</div>' +
+      fnum('bad', 'Bad-case price (my floor)', 'Floor, not a stop') + '<div class="when">Use your floor or bear case. A stop-loss does not protect you from a gap down.</div>' +
+      '<div class="q">Size it as a</div>' + seg('fset', 'kind', KINDS, F.kind) +
+      '<div class="when" style="margin-top:4px">Loss budget: ' + fmt(D.settings.lossSpec) + '% of the portfolio for a speculative idea, ' + fmt(D.settings.lossCore) + '% for a core one.</div>' +
+      '<div class="q">What the numbers say</div><div id="calc">' + sellCalc(F) + '</div></div>';
+  }
 
   if (ty !== 'watch') {
-    h += '<div class="card"><div class="ch">Odds and size</div>' + frange('p', 'How likely am I to be right', 5, 95, 5, '%') +
-      (on(HELD) ? frange('conv', 'Conviction', 1, 10, 1, '/10') +
-        '<div class="q">Size it as a</div>' + seg('fset', 'kind', KINDS, F.kind) +
-        '<div class="when" style="margin-top:4px">Loss budget: ' + fmt(D.settings.lossSpec) + '% of the portfolio for a speculative idea, ' + fmt(D.settings.lossCore) + '% for a core one (set in More).</div>' : '') +
-      (on(HELD) ? '<div class="grid2">' + (on(['buy', 'add']) ? fnum('up', 'Upside if right (%)', 'e.g. 60') : '') +
-        fnum('dn', 'Bad case: how far could it fall (%)', 'Floor, not a stop') + '</div>' +
+    h += '<div class="card"><div class="ch">Odds' + (on(HELD) ? ' and conviction' : '') + '</div>' + frange('p', P_LBL[ty], 5, 95, 5, '%') +
+      (on(HELD) ? frange('conv', 'Conviction in the thesis', 1, 10, 1, '/10') : '') +
+      (on(['buy', 'add']) ? '<div class="q">Size it as a</div>' + seg('fset', 'kind', KINDS, F.kind) +
+        '<div class="when" style="margin-top:4px">Loss budget: ' + fmt(D.settings.lossSpec) + '% of the portfolio for a speculative idea, ' + fmt(D.settings.lossCore) + '% for a core one (set in More).</div>' +
+        '<div class="grid2">' + fnum('up', 'Upside if right (%)', 'e.g. 60') + fnum('dn', 'Bad case: how far could it fall (%)', 'Floor, not a stop') + '</div>' +
         '<div class="when">Use your floor or bear case. A stop-loss does not protect you from a gap down.</div>' : '') + '</div>';
   }
 
+  if (side === 'out') {
+    h += '<div class="card"><div class="ch">How I will do it</div>' +
+      seg('fset', 'tr', [{ id: '1', t: 'All now' }, { id: '2', t: '2 steps' }, { id: '3', t: '3 steps' }, { id: '4', t: '4 steps' }], String(F.tr || '1')) +
+      (Number(F.tr) > 1 ? '<div class="q">Spacing</div>' + seg('fset', 'gap', [{ id: '1', t: 'Daily' }, { id: '3', t: 'Every 3 days' }, { id: '7', t: 'Weekly' }], String(F.gap || '3')) : '') +
+      '<div id="trp">' + trancheHtml() + '</div></div>';
+  }
+
   h += '<div class="card"><div class="ch">State of mind</div><div class="q">Right now I feel</div>' + fchips('emo', EMO, F.emo) +
-    (tp.trade ? '<div class="q">Was this trade in my plan before today?</div>' + seg('fset', 'planned', [{ id: 'yes', t: 'Yes, planned' }, { id: 'no', t: 'No, new' }], F.planned) : '') +
+    (T(ty).trade ? '<div class="q">' + (side === 'out' ? 'Was this sale in my plan before today (a rule or my framework)?' : 'Was this trade in my plan before today?') + '</div>' + seg('fset', 'planned', [{ id: 'yes', t: 'Yes, planned' }, { id: 'no', t: 'No, new' }], F.planned) : '') +
     '<label class="field"><span>What does my framework or scorecard say?</span><select data-f="fw"><option value="">No framework verdict</option>' +
     FW.map((x) => '<option' + (F.fw === x ? ' selected' : '') + '>' + x + '</option>').join('') + '</select></label>' +
-    (fwMismatch(F) ? ftext('fwWhy', 'Why am I overriding my own framework?', 'If you cannot write it, follow the framework', false) : '') + '</div>';
+    (fwMismatch(F) ? ftext('fwWhy', 'Why am I overriding my own framework?', 'Name an input that changed. If you cannot, follow the framework', false) : '') + '</div>';
 
-  if (on(['buy', 'add'])) {
-    h += '<div class="card"><div class="ch">Pre-flight<span class="when">from your rulebook</span></div>' + preCards().map((c) =>
+  const pre = preFor(ty);
+  if (pre.length) {
+    h += '<div class="card"><div class="ch">' + (side === 'out' ? 'Before you sell' : side === 'hold' ? 'Before you hold' : 'Pre-flight') + '<span class="when">from your rulebook</span></div>' + pre.map((c) =>
       '<div class="check' + (F.pre[c.id] ? ' done' : '') + '" data-act="fpre" data-k="' + c.id + '"><div class="box"></div><div class="ct small">' + esc(c.t) + '</div></div>').join('') + '</div>';
   }
   h += '<div id="warn">' + warnHtml() + '</div>';
   return h;
 }
+function refreshDecide() {
+  const w = $('#warn'); if (w) w.innerHTML = warnHtml();
+  const c = $('#calc'); if (c) c.innerHTML = sellCalc(draft);
+  const t = $('#trp'); if (t) t.innerHTML = trancheHtml();
+}
 function activeNames() { const s = new Set(); holdings().concat(watching()).forEach((d) => s.add(d.tk)); return s; }
-function warnings(F) {
-  const w = [], tp = T(F.type), set = D.settings, tk = (F.tk || '').trim().toUpperCase();
+function warnings(F0) {
+  const F = derive(F0), w = [], ty = F.type, tp = T(ty), set = D.settings, tk = (F.tk || '').trim().toUpperCase(), rr = riskReducing(F), out = SIDE[ty] === 'out';
+  if (!SIDE[ty]) return w;
   const p = num(F.p), up = num(F.up), dn = num(F.dn), size = num(F.size), conv = num(F.conv);
-  if (tp.trade && F.planned === 'no') w.push({ lvl: 'warn', cool: 1, t: 'Unplanned trade.' });
-  if (tp.trade && isHot(F.emo)) w.push({ lvl: 'bad', cool: 1, t: 'Hot state: ' + emoNames(F.emo.filter((e) => (EMO.find((m) => m.id === e) || {}).hot)) + '.' });
+  const hot = (F.emo || []).filter((e) => (EMO.find((m) => m.id === e) || {}).hot);
+  if (tp.trade && F.planned === 'no') w.push(rr ? { lvl: 'info', t: 'Not planned before today, but it moves you toward your own rules, so there is no cool-off.' } : { lvl: 'warn', cool: 1, t: 'Unplanned trade.' });
+  if (tp.trade && hot.length) w.push(rr ? { lvl: 'info', t: 'You feel ' + emoNames(hot).toLowerCase() + '. That is fine here: the reason to sell is your rule, not the feeling.' } : { lvl: 'bad', cool: 1, t: 'Hot state: ' + emoNames(hot) + '.' });
   const used = tradesInMonth(todayStr().slice(0, 7));
-  if (tp.trade && used >= set.tradeBudget) w.push({ lvl: 'bad', cool: 1, t: 'Trade budget used: ' + used + ' of ' + set.tradeBudget + ' this month.' });
-  if ((F.type === 'sell' || F.type === 'trim') && (F.why || []).includes('fear')) w.push({ lvl: 'bad', cool: 1, t: 'Selling out of fear. Re-read the kill criteria: has one actually fired?' });
-  if (F.type === 'hold' && F.clean === 'no') w.push({ lvl: 'bad', t: 'You would not buy it today at this size. That reads as a trim, not a hold.' });
-  if (fwMismatch(F)) w.push({ lvl: 'bad', t: 'Your framework says ' + F.fw + ' and you are logging ' + tp.t.toUpperCase() + '.' + (F.fwWhy ? '' : ' Write why, or follow it.') });
-  if (HELD.includes(F.type) && isNum(size)) {
+  if (tp.trade && used >= set.tradeBudget) w.push(rr ? { lvl: 'warn', t: 'Trade budget used (' + used + ' of ' + set.tradeBudget + '). A sale that follows your rules is not held back by it.' } : { lvl: 'bad', cool: 1, t: 'Trade budget used: ' + used + ' of ' + set.tradeBudget + ' this month.' });
+  if (out && (F.why || []).includes('fear') && !rr) w.push({ lvl: 'bad', cool: 1, t: 'Selling out of fear. Re-read the kill criteria: has one actually fired?' });
+  if (ty === 'hold' && F.clean === 'no') w.push({ lvl: 'bad', t: 'You would not buy it today at this size. That reads as a trim, not a hold.' });
+  if (out && F.clean === 'yes' && !rr) w.push({ lvl: 'warn', t: 'You would buy it today at this size, yet you are selling. Make sure the reason is a fact, not nerves.' });
+  if (fwMismatch(F)) w.push({ lvl: 'bad', t: 'Your framework says ' + F.fw + ' and you are logging ' + tp.t.toUpperCase() + '.' + (F.fwWhy ? '' : ' Name the input that changed, or follow it.') });
+  if ((out || ty === 'hold') && !isNum(num(F.px))) w.push({ lvl: 'warn', t: 'Add today\u2019s price to check size and value.' });
+  if (ty === 'trim' && isNum(F.shNowN) && isNum(F.shAfterN) && F.shAfterN >= F.shNowN) w.push({ lvl: 'bad', t: 'Shares after the trim should be fewer than shares now.' });
+  if (HELD.includes(ty) && isNum(size)) {
     if (size > set.maxPos) w.push({ lvl: 'bad', t: 'Size ' + fmt(size) + '% is above your ' + set.maxPos + '% hard cap.' });
     const d = { size, dn, kind: F.kind }, fit = sizeFit(d), b = budgetFor(F.kind), r = atRisk(d), fits = sizeFor(d);
-    if (fit === 'nodn') w.push({ lvl: 'warn', t: 'Add the bad-case fall to check this size against your loss budget.' });
+    if (fit === 'nodn') w.push({ lvl: 'warn', t: SIDE[ty] === 'in' ? 'Add the bad-case fall to check this size against your loss budget.' : 'Add the bad-case price to check this size against your loss budget.' });
+    else if (fit === 'over' && ty === 'trim') w.push(r > b * 2 ? { lvl: 'bad', t: 'After this trim the bad case still costs ' + fmt(r) + '% of the portfolio, against a ' + fmt(b) + '% budget. The right size is about ' + fmt(fits) + '%: this is a haircut, not a trim to size.' }
+      : { lvl: 'warn', t: 'After this trim the bad case costs ' + fmt(r) + '%, a little over your ' + fmt(b) + '% budget. The right size is about ' + fmt(fits) + '%.' });
     else if (fit === 'over') w.push({ lvl: 'bad', t: 'In the bad case this costs ' + fmt(r) + '% of the portfolio. Your budget for a ' + kindT(F.kind) + ' idea is ' + fmt(b) + '%, which means a size of about ' + fmt(fits) + '%.' });
-    else if (fit === 'under') w.push({ lvl: 'info', t: 'Bad case costs ' + fmt(r) + '%, under half your ' + fmt(b) + '% budget. Room to go up to about ' + fmt(fits) + '% if the work supports it.' });
-    else if (fit === 'ok') w.push({ lvl: 'good', t: 'Sized to budget: the bad case costs ' + fmt(r) + '% of the portfolio (budget ' + fmt(b) + '%).' });
-    if (isNum(conv) && conv >= 8 && F.kind === 'spec') w.push({ lvl: 'info', t: 'Conviction ' + conv + '/10 on a speculative idea. If the work really supports it, size it as core instead.' });
+    else if (fit === 'under') w.push({ lvl: 'info', t: 'Bad case costs ' + fmt(r) + '%, under half your ' + fmt(b) + '% budget.' + (ty === 'trim' ? ' This trims below the right size of about ' + fmt(fits) + '%. Fine if the thesis is weakening.' : ' Room to go up to about ' + fmt(fits) + '% if the work supports it.') });
+    else if (fit === 'ok') w.push({ lvl: 'good', t: (ty === 'trim' ? 'After this trim, the' : 'Sized to budget: the') + ' bad case costs ' + fmt(r) + '% of the portfolio (budget ' + fmt(b) + '%).' });
+    if (isNum(conv) && conv >= 8 && F.kind === 'spec' && SIDE[ty] === 'in') w.push({ lvl: 'info', t: 'Conviction ' + conv + '/10 on a speculative idea. If the work really supports it, size it as core instead.' });
   }
-  if ((F.type === 'buy' || F.type === 'watch') && tk && !activeNames().has(tk)) {
+  if ((ty === 'buy' || ty === 'watch') && tk && !activeNames().has(tk)) {
     const n = activeNames().size;
     if (n >= set.ideaCap) w.push({ lvl: 'warn', t: 'You already follow ' + n + ' names (cap ' + set.ideaCap + '). Which one comes off the list?' });
   }
-  if (['buy', 'add'].includes(F.type)) {
-    if (isNum(p) && isNum(up) && isNum(dn)) {
-      const ev = p / 100 * up - (1 - p / 100) * dn;
-      w.push({ lvl: ev > 0 ? 'good' : 'bad', t: 'Expected value: ' + pct(ev) + ' (' + p + '% × ' + fmt(up) + '% up, ' + (100 - p) + '% × ' + fmt(dn) + '% down).' });
-    }
-    const miss = preCards().filter((c) => !(F.pre || {})[c.id]).length;
-    if (miss) w.push({ lvl: 'warn', t: plural(miss, 'pre-flight check') + ' not ticked.' });
+  if (['buy', 'add'].includes(ty) && isNum(p) && isNum(up) && isNum(dn)) {
+    const ev = p / 100 * up - (1 - p / 100) * dn;
+    w.push({ lvl: ev > 0 ? 'good' : 'bad', t: 'Expected value: ' + pct(ev) + ' (' + p + '% × ' + fmt(up) + '% up, ' + (100 - p) + '% × ' + fmt(dn) + '% down).' });
   }
-  if (['buy', 'add', 'hold'].includes(F.type) && !(F.kill || '').trim()) w.push({ lvl: 'warn', t: 'No kill criteria. What would prove this wrong?' });
+  if (out && !(F.back || '').trim()) w.push({ lvl: 'warn', t: 'Write the way back in, so the choice is not all or nothing.' });
+  const miss = preFor(ty).filter((c) => !(F.pre || {})[c.id]).length;
+  if (miss) w.push({ lvl: 'warn', t: plural(miss, 'check') + ' in "' + (out ? 'Before you sell' : ty === 'hold' ? 'Before you hold' : 'Pre-flight') + '" not ticked.' });
+  if (['buy', 'add', 'hold'].includes(ty) && !(F.kill || '').trim()) w.push({ lvl: 'warn', t: 'No kill criteria. What would prove this wrong?' });
   return w;
 }
 function willCool(w) { return T(draft.type).trade && draft.date >= todayStr() && w.some((x) => x.cool); }
 function warnHtml() {
+  if (!SIDE[draft.type]) return '';
   const w = warnings(draft), cool = willCool(w);
   return (w.length ? '<div class="card"><div class="ch">Checks</div>' + w.map((x) => '<div class="tw"><div class="dot ' + x.lvl + '"></div><div class="small">' + esc(x.t) + '</div></div>').join('') +
     (cool ? '<div class="note warn" style="margin:10px 0 0">This goes into a ' + D.settings.coolHours + '-hour cool-off. If it is still right then, do it.</div>' : '') + '</div>' : '') +
-    '<div class="actions"><button class="btn big" data-act="submit">' + (cool ? 'Log and start cool-off' : 'Log decision') + '</button><button class="btn ghost" data-act="fclear">Clear</button></div>';
+    '<div class="actions"><button class="btn big" data-act="submit">' + (cool ? LOGL[draft.type] + ' and cool off' : LOGL[draft.type]) + '</button><button class="btn ghost" data-act="fclear">Clear</button></div>';
 }
 function submit() {
   const F = draft, tk = (F.tk || '').trim().toUpperCase();
+  if (!SIDE[F.type]) { toast('Choose what you are deciding'); return; }
   if (!tk) { toast('Add a ticker'); return; }
   if (!(F.thesis || '').trim()) { toast('Write the one-line reason first'); return; }
   if (F.date > todayStr()) { toast('Date is in the future'); return; }
-  const w = warnings(F), cool = willCool(w), now = new Date();
+  const X = derive(F);
+  if (F.type === 'trim' && isNum(X.shNowN) && isNum(X.shAfterN) && X.shAfterN >= X.shNowN) { toast('Shares after should be fewer than shares now'); return; }
+  const w = warnings(F), cool = willCool(w), now = new Date(), out = SIDE[F.type] === 'out';
   const d = { id: uid(), at: now.toISOString(), date: F.date || todayStr(), type: F.type, tk,
-    px: num(F.px), size: F.type === 'sell' ? 0 : num(F.size), conv: HELD.includes(F.type) ? num(F.conv) : null,
-    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(F.dn), kind: HELD.includes(F.type) ? (F.kind || 'spec') : '',
+    px: num(F.px), size: F.type === 'sell' ? 0 : num(X.size), conv: HELD.includes(F.type) ? num(F.conv) : null,
+    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(X.dn), kind: HELD.includes(F.type) || F.type === 'sell' ? (F.kind || 'spec') : '',
+    shNow: X.shNowN, shAfter: isNum(X.shAfterN) ? X.shAfterN : null, mine: num(F.mine), bull: num(F.bull), bad: num(F.bad), back: (F.back || '').trim(),
     thesis: F.thesis.trim(), variant: (F.variant || '').trim(), kill: (F.kill || '').trim(), premortem: (F.premortem || '').trim(),
     why: F.why || [], planned: F.planned || '', fw: F.fw || '', fwWhy: (F.fwWhy || '').trim(), clean: F.clean || '', emo: F.emo || [], pre: F.pre || {},
     flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t),
     status: cool ? 'cooling' : 'done', coolUntil: cool ? new Date(now.getTime() + D.settings.coolHours * 36e5).toISOString() : null, cps: {} };
   if (!cool) d.doneAt = d.date === todayStr() ? now.toISOString() : null;
+  if (out) { const tr = trancheList(F, cool ? ds(new Date(d.coolUntil)) : d.date); if (tr.length) d.tranches = tr; }
   D.decisions[d.id] = d; save();
   draft = newDraft(); localStorage.removeItem(DRAFT);
   view = 'today'; render(); window.scrollTo(0, 0);
-  toast(cool ? 'Logged. Cool-off until ' + fmtTime(d.coolUntil) : 'Decision logged');
+  toast(cool ? 'Logged. Cool-off until ' + fmtTime(d.coolUntil) : d.tranches ? 'Logged. Step 1 of ' + d.tranches.length + ' is on Today' : 'Decision logged');
 }
 
 /* ---------- Book ---------- */
@@ -808,8 +942,11 @@ function holdCard(d) {
     (isNum(sz) ? fmt(sz) + '%' : '') + (isNum(num(d.conv)) ? ' · ' + d.conv + '/10' : '') + (d.kind ? ' · ' + kindT(d.kind) : '') + '</span></div>' +
     (flags.length ? '<div class="flags">' + flags.join('') + '</div>' : '') +
     '<div class="small">' + esc(d.thesis) + '</div>' + (d.kill ? '<div class="kill"><b>Kill if</b> ' + esc(d.kill) + '</div>' : '') +
+    (d.tranches ? (function () { const dn = d.tranches.filter((t) => t.st === 'done').length, sk = d.tranches.filter((t) => t.st === 'skip').length, nx = d.tranches.find((t) => !t.st);
+      return '<div class="when">Sale plan: ' + dn + ' of ' + d.tranches.length + ' steps done' + (sk ? ', ' + sk + ' skipped' : '') + (nx ? ', next ' + nice(nx.date) : '') + '</div>'; })() : '') +
+    (d.back ? '<div class="when">Way back in: ' + esc(d.back) + '</div>' : '') +
     '<div class="when">Last decided ' + nice(d.date) + ' (' + plural(age, 'day') + ' ago)</div>' +
-    '<div class="actions"><button class="btn sm ghost" data-act="recheck" data-k="' + d.id + '">Re-check thesis</button><button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">Log a trade</button></div></div>';
+    '<div class="actions"><button class="btn sm ghost" data-act="recheck" data-k="' + d.id + '">Re-check thesis</button><button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">' + (sizeFit(d) === 'over' || FAM[d.fw] === 'down' ? 'Log a trim' : 'Log a trade') + '</button></div></div>';
 }
 function vBook() {
   const hs = holdings().sort((a, b) => (num(b.size) || 0) - (num(a.size) || 0)), ws = watching();
@@ -880,7 +1017,10 @@ function detailHtml(d) {
   add('Price', d.px); add('Size after', isNum(num(d.size)) ? d.size + '%' : ''); add('Conviction', isNum(num(d.conv)) ? d.conv + '/10' : '');
   add('Sure', isNum(num(d.p)) ? d.p + '%' : ''); add('Up / down', isNum(num(d.up)) || isNum(num(d.dn)) ? fmt(num(d.up)) + '% / ' + fmt(num(d.dn)) + '%' : '');
   add('Sized as', d.kind ? kindT(d.kind) + (isNum(atRisk(d)) ? ', bad case costs ' + fmt(atRisk(d)) + '% of the portfolio' : '') : '');
-  add('Thesis', d.thesis); add('Variant view', d.variant); add('Kill if', d.kill); add('Pre-mortem', d.premortem);
+  add('Shares', isNum(d.shNow) ? d.shNow.toLocaleString('en-US') + (isNum(d.shAfter) && d.shAfter !== d.shNow ? ' \u2192 ' + d.shAfter.toLocaleString('en-US') : '') : '');
+  add('Value / bull / bad', isNum(d.mine) || isNum(d.bull) || isNum(d.bad) ? '$' + fmt(d.mine, 2) + ' / $' + fmt(d.bull, 2) + ' / $' + fmt(d.bad, 2) : '');
+  add('Thesis', d.thesis); add('Way back in', d.back);
+  add('Sale plan', (d.tranches || []).map((t) => t.n + ': ' + (t.sh ? t.sh + ' sh ' : '') + nice(t.date) + (t.st ? ' ' + t.st + (t.why ? ' (' + t.why + ')' : '') : '')).join(' \u00b7 ')); add('Variant view', d.variant); add('Kill if', d.kill); add('Pre-mortem', d.premortem);
   add('Why sell', (d.why || []).map((w) => (SELLWHY.find((x) => x.id === w) || {}).t).join(', '));
   add('Planned', d.planned === 'yes' ? 'Yes' : d.planned === 'no' ? 'No' : ''); add('Framework', d.fw ? d.fw + (d.fwWhy ? ': ' + d.fwWhy : '') : '');
   add('Felt', emoNames(d.emo)); add('Flags', (d.flags || []).join(' '));
@@ -924,7 +1064,10 @@ function tradeChart() {
 function vScore() {
   const S = scored(), n = S.length;
   let h = '<h3 class="sec">Scorecard</h3>';
-  h += '<div class="card"><div class="ch">Trades per month</div>' + tradeChart() + '</div>';
+  const trs = []; Object.values(D.decisions).forEach((d) => { if (d.status === 'done') (d.tranches || []).forEach((t) => trs.push(t)); });
+  const tDue = trs.filter((t) => t.date <= todayStr());
+  h += '<div class="card"><div class="ch">Trades per month</div>' + tradeChart() +
+    (tDue.length ? '<div class="small" style="margin-top:8px">Sale plans: <b>' + tDue.filter((t) => t.st === 'done').length + ' of ' + tDue.length + '</b> due steps done, ' + tDue.filter((t) => t.st === 'skip').length + ' skipped, ' + tDue.filter((t) => !t.st).length + ' still open.</div>' : '') + '</div>';
   if (!n) return h + '<div class="card"><div class="ch">Patterns</div><div class="small mute">Fills in as you review decisions. Read anything under about 20 reviewed decisions as a hint, not a finding.</div></div>';
   const small = n < 20 ? '<div class="note warn small">Only ' + plural(n, 'reviewed decision') + '. Treat every pattern below as a hint until about 20.</div>' : '';
   h += small;
@@ -1107,6 +1250,8 @@ function vMore() {
     '<div class="grid2"><label class="field"><span>Speculative idea (% of portfolio)</span><input type="number" inputmode="decimal" step="0.1" min="0.1" max="20" data-act="setting" data-k="lossSpec" value="' + st.lossSpec + '"></label>' +
     '<label class="field"><span>Core idea (% of portfolio)</span><input type="number" inputmode="decimal" step="0.1" min="0.1" max="20" data-act="setting" data-k="lossCore" value="' + st.lossCore + '"></label></div>' +
     '<div class="when">Set these on a quiet day. Right size = loss budget ÷ how far the stock could fall in the bad case.</div>' +
+    '<label class="field"><span>Portfolio value, in the currency you type prices in (optional)</span><input type="number" inputmode="decimal" min="0" data-act="setting" data-k="port" value="' + esc(st.port) + '" placeholder="e.g. 4000000"></label>' +
+    '<div class="when">Used only to turn shares into % of the portfolio on sales and holds. Stays on this device and in your private backup.</div>' +
     '<label class="field"><span>Hard cap on any one position (% of portfolio)</span><input type="number" inputmode="decimal" min="1" max="100" data-act="setting" data-k="maxPos" value="' + st.maxPos + '"></label></div>';
 
   h += '<div class="card"><div class="ch">Reminders</div><div class="small">Adds three repeating events to your calendar: a 2-minute check-in at 9pm, the weekly review on Sunday at 7pm, and the monthly scorecard on the first Saturday.</div><div class="actions"><button class="btn" data-act="ics">Add to calendar</button></div></div>';
@@ -1265,6 +1410,15 @@ document.addEventListener('click', (e) => {
     if (pick) { x.card = pick.id; x.cardDone = null; persist(); render(); }
     return;
   }
+  if (a === 'trdo' || a === 'trskip') {
+    const d = D.decisions[k], t = d && d.tranches && d.tranches[Number(v)]; if (!t) return;
+    if (a === 'trskip') {
+      const why = prompt('Skipping needs a new fact, not a price move. What changed?');
+      if (!why || !why.trim()) { toast('No new fact, no skip'); return; }
+      t.st = 'skip'; t.why = why.trim();
+    } else t.st = 'done';
+    t.at = new Date().toISOString(); save(); render(); toast(a === 'trdo' ? 'Step ' + t.n + ' of ' + t.of + ' done' : 'Skipped, with the reason logged'); return;
+  }
   if (a === 'cdo' || a === 'cdrop') {
     const d = D.decisions[k]; if (!d) return;
     if (a === 'cdo') { d.status = 'done'; d.doneAt = new Date().toISOString(); if (new Date(d.coolUntil) > new Date()) d.override = true; toast(d.override ? 'Logged as an override. It will show in your scorecard.' : 'Done. It comes back for review in 30 days.'); }
@@ -1278,8 +1432,11 @@ document.addEventListener('click', (e) => {
   if (a === 'fclear') { if (!confirm('Clear this form?')) return; draft = newDraft(); localStorage.removeItem(DRAFT); render(); return; }
   if (a === 'recheck' || a === 'trade') {
     const d = D.decisions[k]; if (!d) return;
-    const keep = { tk: d.tk, size: d.size == null ? '' : d.size, conv: d.conv || 5, p: d.p || 60, kill: d.kill, fw: d.fw, dn: d.dn == null ? '' : d.dn, kind: d.kind || 'spec' };
-    draft = a === 'recheck' ? newDraft(Object.assign(keep, { type: 'hold', thesis: d.thesis, variant: d.variant })) : newDraft(Object.assign(keep, { type: d.type === 'watch' ? 'buy' : 'add' }));
+    const v0 = (x) => (x == null ? '' : x), sh = d.shAfter != null ? d.shAfter : d.shNow;
+    const keep = { tk: d.tk, size: v0(d.size), conv: d.conv || 5, p: d.p || 60, kill: d.kill, fw: d.fw, dn: v0(d.dn), kind: d.kind || 'spec', shNow: v0(sh), mine: v0(d.mine), bull: v0(d.bull), bad: v0(d.bad), back: d.back || '' };
+    const shrink = sizeFit(d) === 'over' || FAM[d.fw] === 'down';
+    draft = a === 'recheck' ? newDraft(Object.assign(keep, { type: 'hold', thesis: d.thesis, variant: d.variant }))
+      : newDraft(Object.assign(keep, { type: d.type === 'watch' ? 'buy' : shrink ? 'trim' : 'add' }));
     keepDraft(); view = 'decide'; render(); window.scrollTo(0, 0); return;
   }
   if (a === 'rset') { const st = RV[k] = RV[k] || { th: '', pr: '', tags: [] }; st[el.dataset.f2] = v; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); return; }
@@ -1330,7 +1487,7 @@ document.addEventListener('input', (e) => {
   if (ds_.f) {
     draft[ds_.f] = el.type === 'range' ? Number(el.value) : el.value;
     if (el.type === 'range') { const lv = document.getElementById('lv-' + ds_.f); if (lv) lv.textContent = el.value + ds_.suf; }
-    keepDraft(); const w = $('#warn'); if (w && ds_.f !== 'fw') w.innerHTML = warnHtml(); return;
+    keepDraft(); if (ds_.f !== 'fw') refreshDecide(); return;
   }
   if (ds_.tool) {
     const t = TOOLS[ds_.tool] = TOOLS[ds_.tool] || {}; t[ds_.k] = el.value;
@@ -1354,7 +1511,8 @@ document.addEventListener('input', (e) => {
 document.addEventListener('change', (e) => {
   const el = e.target, a = el.dataset && el.dataset.act, k = el.dataset && el.dataset.k;
   if (el.dataset && el.dataset.f === 'fw') { draft.fw = el.value; keepDraft(); render(); return; }
-  if (el.dataset && el.dataset.f === 'date') { const w = $('#warn'); if (w) w.innerHTML = warnHtml(); return; }
+  if (el.dataset && el.dataset.f === 'date') { refreshDecide(); return; }
+  if (a === 'setting' && k === 'port' && el.value.trim() === '') { D.settings.port = ''; save(); render(); toast('Saved'); return; }
   if (a === 'setting') { const n = num(el.value); if (!isNum(n) || n < 0) { toast('Enter a number'); el.value = D.settings[k]; return; } D.settings[k] = n; save(); render(); toast('Saved'); return; }
   if (a === 'restorefile') {
     const f = el.files && el.files[0]; if (!f) return;
