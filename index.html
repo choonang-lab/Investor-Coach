@@ -68,6 +68,7 @@ select{width:100%}
 .check.done .box{background:var(--good);border-color:var(--good)}
 .check.done .box::after{content:"";width:6px;height:11px;border:solid var(--on-accent);border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
 .check.done .ct{color:var(--mute)}
+.card>.check:first-child{border-top:0;padding-top:0}
 .when{font-size:12px;color:var(--mute)}
 .note{border-radius:12px;padding:12px 14px;margin:0 0 12px;font-size:15px}
 .note.good{background:var(--good-soft)}
@@ -136,6 +137,14 @@ summary.q{color:var(--accent)}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;font-size:14px;margin:8px 0}
 .kv dt{color:var(--mute)}
 .kv dd{margin:0}
+.pbar{height:8px;border-radius:999px;background:var(--chip);overflow:hidden}
+.pbar i{display:block;height:100%;background:var(--good);border-radius:999px}
+ol.steps{margin:4px 0 0;padding-left:20px;font-size:14px}
+ol.steps li{margin:5px 0}
+.opts{display:flex;flex-direction:column;gap:6px}
+.opt{text-align:left;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink)}
+.opt.right{background:var(--good-soft);border-color:var(--good);color:var(--good);font-weight:600}
+.opt.wrong{background:var(--bad-soft);border-color:var(--bad);color:var(--bad)}
 </style>
 </head>
 <body>
@@ -144,7 +153,7 @@ summary.q{color:var(--accent)}
 <nav id="tabbar"></nav>
 <div id="toast"></div>
 <script>
-const BUILD = 'v2';
+const BUILD = 'v3';
 const KEY = 'ic_data';
 const GHKEY = 'ic_gh';
 const DIRTY = 'ic_dirty';
@@ -202,7 +211,153 @@ const RULES = [
   { id: 'm1', cat: 'mind', t: 'Judge the decision, not the outcome.', why: 'Good decisions lose money sometimes and bad ones make money. Grade the process you could control.' },
   { id: 'm2', cat: 'mind', t: 'Write it down before acting. Memory rewrites the reasons afterwards.', why: 'Hindsight makes every result feel obvious. The written record is the only honest teacher.' },
   { id: 'm3', cat: 'mind', t: 'Being early and being wrong look the same for a while. My kill criteria tell me which.', why: 'Without them, every loser is just early.' },
-  { id: 'm4', cat: 'mind', t: 'Calibration beats confidence.', why: 'When you say 70%, it should happen about 7 times in 10. Most people are overconfident until they measure it.' }
+  { id: 'm4', cat: 'mind', t: 'Calibration beats confidence.', why: 'When you say 70%, it should happen about 7 times in 10. Most people are overconfident until they measure it.' },
+  { id: 'a13', cat: 'analysis', t: 'Before distrusting my model, run it at its most generous.', why: 'A vague "maybe I am too bearish" always supports holding. Switch the bullish inputs on and see whether the price still sits above the result.' },
+  { id: 'a14', cat: 'analysis', t: 'Does this news change a number in my model, or only my mood?', why: 'Five encouraging items that move no input add up to zero, not to a trend.' },
+  { id: 'z7', cat: 'sizing', t: 'How sure would I need to be in the bull case to justify this price?', why: 'Needed = (price minus my value) divided by (bull value minus my value). "The bulls might be right" only counts if I would give them more than that.' },
+  { id: 'z8', cat: 'sizing', t: 'Size to the gap, not the stop.', why: 'Event-driven stocks open far below any stop. Use the bad-case price in the sizing formula.' },
+  { id: 's8', cat: 'selling', t: 'Compare both regrets in dollars before deciding.', why: 'The fear of selling too early is loud and the fear of holding too much is quiet. Dollars make them comparable.' },
+  { id: 's9', cat: 'selling', t: 'Trimming is not selling out. Keep a small stake and write the way back in.', why: 'Framing the choice as all or nothing is how people end up holding everything.' },
+  { id: 'i7', cat: 'impulse', t: 'If it does not shrink my bad-case loss, it is not a trim.', why: 'Covered calls, waiting for the next report and moving the target all feel like action and leave the risk where it was.' },
+  { id: 'm5', cat: 'mind', t: 'A rising price is not proof I was right. What fact changed?', why: 'Every day a held position rises after a rule fires trains you to ignore the rule.' },
+  { id: 'm6', cat: 'mind', t: 'Override my framework only for an input, never for a feeling.', why: 'Feelings arrive dressed as reasons: momentum, regret, "the bulls might be right".' },
+  { id: 'm7', cat: 'mind', t: 'Write limits before they are tested. Change them only on a quiet day.', why: 'In the moment, every limit looks as if it was written for a different situation.' }
+];
+
+/* ---------- Learning plan: thinking straight about selling and sizing ----------
+   Lesson ids are progress keys: never rename or reuse them. The running example (Northwind, NWTX) is made up. */
+const MODS = [
+  { id: 1, t: 'See the decision clearly' },
+  { id: 2, t: 'Test your own model honestly' },
+  { id: 3, t: 'Size by what you can lose' },
+  { id: 4, t: 'Act on what you decided' },
+  { id: 5, t: 'Learn from your pattern' }
+];
+const CASE = [
+  ['Company', 'Northwind Therapeutics (NWTX), made up'],
+  ['You own', '10,000 shares, average cost $40, in a $4M portfolio'],
+  ['History', 'Hit $78 in the spring, when you were up $380k. A court ruling took it from $70 to $25 in one day'],
+  ['Now', '$55, after a three-week rally. The position is $550k, 13.75% of the portfolio'],
+  ['Your valuation', '$26 (careful work, written down)'],
+  ['Most bullish broker', '$75'],
+  ['Your bad-case floor', '$7'],
+  ['Your own rule', 'Trim above $45. It fired ten days ago. You have not sold']
+];
+const LESSONS = [
+  { id: 'l1', m: 1, w: 1, t: 'Holding is buying again', rule: 's1',
+    idea: 'Every day you keep a position, you choose to own it at today’s price and size. Not selling is a decision as large as buying.',
+    hard: 'Doing nothing feels neutral and safe, while buying feels like a commitment. The mind treats the default as free, so a position can stay huge simply because it already is.',
+    ex: 'Holding 10,000 NWTX at $55 is the same exposure as a fresh $550k purchase, 13.75% of your portfolio, in a stock you value at $26. Ask: with $550k in cash this morning, would you buy it? If the honest answer is "a little", the gap between a little and $550k is the trim.',
+    steps: ['Imagine the position turned into cash overnight.', 'Write down how much you would buy today, and why that amount.', 'The difference between that and what you hold is the decision you are actually making by holding.'],
+    drill: 'Pick your largest position. If it were cash this morning, how much would you buy today, and why that amount?',
+    q: { q: 'With fresh cash you would buy $150k of a stock, but you hold $550k. What does holding $550k amount to?', o: ['A neutral choice, since you already own it', 'A decision to own $400k more than you would buy fresh', 'Nothing, until the price moves'], a: 1, why: 'Owning is a daily choice. The $400k gap is a buy decision you are making without writing it down.' } },
+  { id: 'l2', m: 1, w: 1, t: 'Your cost is not an input', rule: 's3',
+    idea: 'What you paid affects your feelings, not the stock’s future. The market does not know your cost, and neither does the business.',
+    hard: 'Selling below cost feels like admitting a mistake. Selling a little above it, after being up far more, feels like settling. Both pull you toward holding: the get-even effect.',
+    ex: 'NWTX cost you $40 and trades at $55. At $78 you were up $380k; selling now "locks in only" $150k. Neither $40 nor $78 changes what the shares are worth ($26 by your own work) or what they do next. A new investor with the same facts and no history would see one question: $55 for something worth $26?',
+    steps: ['Cover the cost column when you decide.', 'Ask what a new investor with no history would do with the same facts.', 'If your answer changes when you uncover the cost, the cost is making the decision.'],
+    drill: 'For one holding, write the decision you would make if you did not know your cost. Is it different from what you are doing now?',
+    q: { q: 'NWTX is $55, your cost is $40 and your value is $26. Which numbers belong in the decision?', o: ['$40, so you keep a gain', '$78, the old high you want back', '$55 against $26'], a: 2, why: 'Only the price and the value describe the bet you are making from here. The other two describe your past.' } },
+  { id: 'l3', m: 1, w: 1, t: 'A rising price is not proof you were right', rule: 'm5',
+    idea: 'Over days and weeks, price moves are mostly noise. A rally after your rule fires does not show the rule was wrong.',
+    hard: 'Each day you did not sell and the price rose feels like a reward for waiting. That trains you, in real time, to ignore your own rules.',
+    ex: 'NWTX rose from $45 to $55 in the ten days after your trim rule fired. Nothing in your model changed: no new revenue figure, no guidance. The extra $10 is the market’s mood, not a new input, and it leaves the stock even further above your $26.',
+    steps: ['When a price move tempts you to change course, list the facts that changed.', 'If the list is empty, the plan stands.', 'Judge a rule over many uses, not over one week.'],
+    drill: 'Name a time a short-term price move made you drop a plan. What happened afterwards?',
+    q: { q: 'Your trim rule fired at $45. Ten days later the stock is $55 with no new facts. What does the rally tell you about the rule?', o: ['The rule was wrong', 'Little or nothing, and the gap to your value is now bigger', 'Wait for it to come back to $45 first'], a: 1, why: 'Nothing that sets value has changed; only the price has, and it moved further from your value.' } },
+  { id: 'l4', m: 2, w: 2, t: 'How sure would you need to be?', rule: 'z7', tool: 'breakeven',
+    idea: 'When you are torn between your value and a bullish target, work out how much weight the current price puts on the bull case. Needed = (price − your value) ÷ (bull value − your value).',
+    hard: '"The bulls might be right" feels like a reason to hold. It is only a reason if you would give them more weight than the price already demands.',
+    ex: 'NWTX: (55 − 26) ÷ (75 − 26) = 59%. Just to break even, you must be 59% sure the most bullish broker is right and your own work is wrong. To earn a real return you need more. Even a 50/50 blend of the two values is $50.50, below the price.',
+    steps: ['Write three numbers: price, your value, the most bullish credible value.', 'Work out the weight the price needs on the bull case.', 'Ask honestly whether you believe the bull case that much. If not, the price is ahead of you.'],
+    drill: 'Run the calculator on a holding where you and the market disagree. Would you honestly put that much weight on the bull case?',
+    q: { q: 'Your value is $30, the bull target is $90 and the price is $60. How sure must you be in the bull case to break even?', o: ['33%', '50%', '67%'], a: 1, why: '(60 − 30) ÷ (90 − 30) = 30 ÷ 60 = 50%.' } },
+  { id: 'l5', m: 2, w: 2, t: 'Test your model at its most generous', rule: 'a13',
+    idea: 'If you suspect your model is too pessimistic, check it directly: switch on the most bullish reasonable inputs, one at a time and then together, and see where the value lands.',
+    hard: 'Knowing you have made mistakes before invites a vague discount on your own work ("maybe I am too bearish"), and the vague version always happens to support holding.',
+    ex: 'Your NWTX value is $26. The most bullish single changes: a higher market share gives $41, the brokers’ pipeline value gives $43, bullish growth weights give $38. Only stacking several of them, or a takeover, reaches $55. Even if your model is too gloomy, the price is ahead of its generous version.',
+    steps: ['List the three to five inputs you are least sure of.', 'Set each to its bullish end, one at a time, then all together.', 'If the price is above even the stacked version, the gap is not your pessimism.'],
+    drill: 'For your largest holding, which single input would have to change most for the price to make sense? Is there evidence for that change yet?',
+    q: { q: 'Switching on each bullish input separately, your highest value is $43. The price is $55. What follows?', o: ['The model is broken, so ignore it', 'The price needs several bullish inputs at once, or a takeover', 'Hold until the model reaches $55'], a: 1, why: 'A single generous change does not close the gap, so the price assumes much more than one thing going right.' } },
+  { id: 'l6', m: 2, w: 2, t: 'Sort news into inputs and noise', rule: 'a14',
+    idea: 'For every new piece of information, ask one question: does it change a number in my model? If not, it is atmosphere.',
+    hard: 'A steady stream of encouraging items (a broker target, upbeat posts, a conference comment) feels like piling-up evidence, even when none of it moves an input.',
+    ex: 'In ten days NWTX had a bullish broker initiation, positive interviews with doctors and a takeover rumour online. Your note on each says "no input moves". Five non-events add up to zero, not a trend. The input that matters, revenue split by product, comes with the next results.',
+    steps: ['Keep a short news log per holding with one column: did an input move?', 'Count only the yes rows.', 'Name in advance which disclosure would move the key input, and when it is due.'],
+    drill: 'List the last five things you read about one holding. Which of them changed a number?',
+    q: { q: 'Which of these is an input?', o: ['A broker raises its target to $75', 'Management discloses revenue by product for the first time', 'Upbeat posts from doctors online'], a: 1, why: 'Only the disclosure changes a figure in the model. The other two are opinions about figures you already have.' } },
+  { id: 'l7', m: 3, w: 3, t: 'Size is set by the loss, not the upside', rule: 'z1', tool: 'size',
+    idea: 'Decide first how much one idea may cost you if it goes wrong. Then right size = loss budget ÷ bad-case fall.',
+    hard: 'Size usually grows out of excitement about the upside, then stays large because of history. Starting from the loss turns that around.',
+    ex: 'Portfolio $4M; loss budget for a speculative idea 1.5% = $60k. The NWTX bad case runs from $55 to the $7 floor, a fall of 87%. Right size = $60k ÷ 0.87 = $69k, about 1,250 shares (1.7% of the portfolio). You hold 10,000 shares, so the bad case costs $480k: 12% of the portfolio, eight times the budget.',
+    steps: ['Set a loss budget per idea, separately for speculative and core ideas (More, Guardrails).', 'Find the bad-case fall from today’s price.', 'Divide. Compare with what you hold.'],
+    drill: 'Set your two loss budgets, then size your largest holding with the calculator. How far apart are the right size and the actual size?',
+    q: { q: 'Your loss budget is $40k and the bad-case fall is 80%. What is the right size?', o: ['$32k', '$50k', '$200k'], a: 1, why: '$40k ÷ 0.80 = $50k. If the bad case happens you lose 80% of $50k, which is exactly the budget.' } },
+  { id: 'l8', m: 3, w: 3, t: 'Use an honest bad case', rule: 'z8',
+    idea: 'The downside in the sizing formula is where the stock goes if the thesis breaks: your floor or bear case, not the stop-loss you hope to hit.',
+    hard: 'Stops feel like protection. But stocks that move on events (rulings, trial results, guidance) open far below any stop.',
+    ex: 'NWTX went from $70 to $25 in one session on a court ruling. A stop at $60 would have filled near $25. Sizing as if your loss ended at $60 understated the risk about five times over.',
+    steps: ['Use the floor or bear-case price.', 'For any stock facing a single big event, assume a gap through your stop.', 'Use your fair value only as the gentle case: the market simply coming round to your view.'],
+    drill: 'Write the bad-case price for each holding. Which of them could gap on a single event?',
+    q: { q: 'A biotech awaiting a trial result trades at $40, with a stop at $34. If the trial fails, the bad case is $10. Which fall belongs in the sizing formula?', o: ['15%, the stop', '75%, the bad case', 'Nothing until the result'], a: 1, why: 'A failed trial is announced outside market hours and the stock opens near the bad case. The stop never gets its price.' } },
+  { id: 'l9', m: 3, w: 3, t: 'Compare the two regrets in dollars', rule: 's8', tool: 'regret',
+    idea: 'The fear of selling too early is loud; the fear of holding too much is quiet. Put both in dollars, side by side, before you decide.',
+    hard: 'You picture the stock doubling after you sell far more vividly than the slow loss of holding too much.',
+    ex: 'NWTX at $55, holding 10,000 shares or trimming to 2,000:',
+    tbl: [['If the stock goes to', 'Hold 10,000', 'Trim to 2,000'], ['$75 (bull broker)', '+$200k', '+$40k'], ['$26 (your value)', '−$290k', '−$58k'], ['$7 (bad-case floor)', '−$480k', '−$96k']],
+    ex2: 'Trimming costs $160k of gain if the bulls are right. It saves $232k if you are right, and $384k in the bad case. The regrets are not the same size, and the trimmed position still makes money if the bulls win.',
+    steps: ['Pick three prices: bull, your value, bad case.', 'Work out the gain or loss for holding everything and for your target size.', 'Ask which regret you could live with.'],
+    drill: 'Run the regret calculator on your largest holding at its right size. Which regret could you live with?',
+    q: { q: 'Holding everything makes $200k if the bulls are right and loses $290k if you are right. What does trimming change most?', o: ['It removes all the upside', 'It shrinks the large loss more than the gain', 'Nothing, since the odds are the same'], a: 1, why: 'Trimming scales both outcomes down, but the loss it avoids ($232k) is bigger than the gain it gives up ($160k), and you still make money if the bulls win.' } },
+  { id: 'l10', m: 3, w: 4, t: 'Trimming is not selling out', rule: 's9',
+    idea: 'Between holding everything and selling everything there is a size that keeps the upside you care about at a loss you can live with.',
+    hard: 'People frame the choice as "sell or hold". Selling everything feels too final, so they hold everything.',
+    ex: 'At 2,000 NWTX shares, an $80 takeover still makes $50k and a fall to your value costs $58k. You stay in for the next results and the takeover chance, and you write a way back in: add again near $26, or if the next results show the bull path.',
+    steps: ['Work out the right size from the loss budget.', 'Write the conditions for adding back: a price, or a fact.', 'Keep the small stake as a reason to keep watching.'],
+    drill: 'For a position you hesitate to trim: what size keeps the upside that matters to you, and what would make you add back?',
+    q: { q: 'Your framework says "trim toward small". Which action follows it?', o: ['Sell 10% to feel better', 'Cut to the loss-budget size and write the conditions for adding back', 'Sell everything'], a: 1, why: '"Small" is the loss-budget size, not a token haircut, and it is not zero.' } },
+  { id: 'l11', m: 4, w: 4, t: 'Set limits before they are tested', rule: 'm7',
+    idea: 'Limits written on a quiet day are the only ones that hold on an exciting one.',
+    hard: 'In the moment, every limit looks as if it was written for a different situation.',
+    ex: 'Your NWTX trim rule ($45) was set while calm. When it fired, the rally made it feel out of date. And because you had never written a maximum loss per idea, "trim toward small" became a debate instead of arithmetic.',
+    steps: ['Write: loss budget per idea (speculative and core), largest single position, largest per theme, trim trigger.', 'Change a limit only with a dated note and a reason.', 'Review limits on a scheduled day, never while a position is moving.'],
+    drill: 'Fill in your loss budgets and one theme limit. Which limit are you breaking today?',
+    q: { q: 'When is the right time to change a sizing limit?', o: ['When a position you like breaks it', 'On a scheduled quiet day, with a written reason', 'Never'], a: 1, why: 'Limits should be able to change, but never because of the position they are limiting.' } },
+  { id: 'l12', m: 4, w: 4, t: 'Execute in tranches on dates', rule: 's7',
+    idea: 'Turn a hard decision into a calendar: target size, number of tranches, a date for each. Then follow the calendar, not the screen.',
+    hard: 'If each tranche is left open, it becomes a new decision, and intraday moves supply endless reasons to wait.',
+    ex: 'NWTX from 10,000 to 2,000 means selling 8,000: 2,700 on Monday, 2,700 on Thursday and 2,600 the following Tuesday, at market. If the price runs up, the later tranches sell higher; if it falls, the first one helped. There is no single moment to regret.',
+    steps: ['Fix the target size and split the difference into two to four tranches.', 'Put each tranche on a date, at market or a set limit.', 'On the date, execute. A skip needs a written reason naming a new fact.'],
+    drill: 'Write a tranche plan for one position that is over its loss budget: shares and dates.',
+    q: { q: 'Tranche 2 is due today and the stock is up 6% since tranche 1. What do you do?', o: ['Wait for it to go higher', 'Sell tranche 2 as planned', 'Cancel the plan'], a: 1, why: 'A higher price makes the planned sale better, not worse. Nothing that sets value has changed.' } },
+  { id: 'l13', m: 4, w: 5, t: 'Spot disguised non-decisions', rule: 'i7',
+    idea: 'Some actions feel like progress but leave the risk where it was: covered calls on an oversized holding, "waiting for the next report", raising the trim target after the old one fires.',
+    hard: 'They let you feel active without facing the sale.',
+    ex: 'Selling $50 calls on NWTX at $55 collects a premium but keeps nearly the whole fall to $26, or to $7. If the stock rises you sell at $50 anyway, just later. It caps the gain and keeps the loss. Waiting for the next results is a real choice only if you name now which result changes the size, and act on it.',
+    steps: ['Ask: does this shrink what I lose in the bad case?', 'If not, it is not a trim.', 'If you are waiting for news, write the result you are waiting for and the action it triggers.'],
+    drill: 'Have you used options, "waiting for news" or a moved target to avoid a sale? Which, and on what?',
+    q: { q: 'You hold too much of a stock and sell covered calls against it. What happens if the stock halves?', o: ['The calls protect you', 'You keep almost the whole loss, less the premium', 'The position closes automatically'], a: 1, why: 'A covered call pays a small premium in exchange for the upside. It does nothing for the downside.' } },
+  { id: 'l14', m: 4, w: 5, t: 'The override test: input or feeling?', rule: 'm6',
+    idea: 'Overriding your own framework is allowed, but the reason must name an input (a fact or number that changed), not a feeling.',
+    hard: 'Feelings arrive dressed as reasons: "it has momentum", "I would regret selling", "the bulls might be right".',
+    ex: 'A valid NWTX override: "The company disclosed product revenue that puts next year on the bull path; my value rises to $52." Invalid: "It keeps going up" or "I want to see the next report." The first changes a number; the others describe a mood.',
+    steps: ['Write the override reason in one sentence.', 'Underline the fact or number in it.', 'If there is nothing to underline, follow the framework.'],
+    drill: 'Write the override reason for any holding where you act against your framework. Does it name an input?',
+    q: { q: 'Which override reason passes the test?', o: ['The stock has strong momentum', 'New disclosure puts revenue on the bull path; my value rises to $52', 'I would hate to sell before a takeover'], a: 1, why: 'Only the second names a fact that changes the valuation.' } },
+  { id: 'l15', m: 5, w: 5, t: 'Find your repeat mistake', rule: '', toRule: 1,
+    idea: 'One mistake is a lesson. The same mistake twice, in the same name, is a pattern, and patterns are what to fix.',
+    hard: 'Each instance feels unique because the facts were different. The behaviour underneath was the same.',
+    ex: 'Months ago NWTX was flagged as oversized near its high, and selling puts there added more shares. Now it is oversized again after a crash and a rebound. The analysis was careful both times; acting on it failed both times. More analysis would not have helped. A rule for acting would have.',
+    steps: ['List positions where size ran ahead of your framework.', 'Note what you felt each time.', 'Turn the common thread into one rule and add it to your rulebook.'],
+    drill: 'Write your repeat pattern in one sentence, then the rule that would have stopped it.',
+    q: { q: 'Your analysis was right twice and you lost money both times through sizing. Where should the next effort go?', o: ['More analysis', 'Rules for acting on the analysis', 'Owning fewer stocks, nothing else'], a: 1, why: 'The weak link was turning a verdict into an order, so that is what needs a rule.' } },
+  { id: 'l16', m: 5, w: 6, t: 'Capstone: the whole checklist on one holding', rule: '', capstone: 1,
+    idea: 'Apply every lesson to your largest holding in one sitting, then log the result as a decision.',
+    hard: 'Each idea is easy alone. Using them together, on a stock you care about, is the skill.',
+    ex: 'Work through the checklist below on your own largest position, writing a line for each step.',
+    steps: ['Clean slate: how much would I buy with cash today?', 'Cost covered: does my answer change without the cost?', 'What facts changed since my last decision?', 'How sure must I be in the bull case to justify the price?', 'Does the price survive my model at its most generous?', 'Which recent news moved an input?', 'Right size: loss budget ÷ honest bad-case fall.', 'Regret table at the right size.', 'Target size and the way back in.', 'Tranche dates.', 'Avoidance check: am I using options or waiting to dodge the sale?', 'If I override, which input do I name?'],
+    drill: 'Write your decision: the target size, the tranche dates and the conditions for adding back.',
+    q: null }
 ];
 
 const PROMPTS = [
@@ -293,7 +448,7 @@ function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
 /* ---------- State ---------- */
 function blank() {
   return { v: 1, settings: { tradeBudget: 6, coolHours: 24, ideaCap: 10, maxPos: 15, lossSpec: 1, lossCore: 2 },
-    decisions: {}, deleted: {}, days: {}, weeks: {}, cards: {}, myCards: {}, lastBackup: null, savedAt: null };
+    decisions: {}, deleted: {}, days: {}, weeks: {}, cards: {}, myCards: {}, learn: { start: null, done: {}, drills: {}, checks: {} }, lastBackup: null, savedAt: null };
 }
 function fill(d, b) {
   for (const k in b) {
@@ -405,15 +560,16 @@ const ICONS = {
   decide: '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>',
   book: '<svg viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg>',
   review: '<svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
+  learn: '<svg viewBox="0 0 24 24"><path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.3 1.1 2.2h5c0-.9.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/></svg>',
   more: '<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>'
 };
 function render() {
   const t = todayStr(), mk = t.slice(0, 7);
   $('#sub').innerHTML = nice(t) + ' · trades ' + tradesInMonth(mk) + '/' + D.settings.tradeBudget;
   const due = dueList().length;
-  $('#tabbar').innerHTML = [['today', 'Today'], ['decide', 'Decide'], ['book', 'Book'], ['review', 'Review'], ['more', 'More']].map(([id, l]) =>
+  $('#tabbar').innerHTML = [['today', 'Today'], ['decide', 'Decide'], ['book', 'Book'], ['learn', 'Learn'], ['review', 'Review'], ['more', 'More']].map(([id, l]) =>
     '<button class="' + (view === id ? 'on' : '') + '" data-act="tab" data-v="' + id + '">' + ICONS[id] + l + (id === 'review' && due ? '<span class="badge">' + due + '</span>' : '') + '</button>').join('');
-  $('#main').innerHTML = ({ today: vToday, decide: vDecide, book: vBook, review: vReview, more: vMore })[view]();
+  $('#main').innerHTML = ({ today: vToday, decide: vDecide, book: vBook, learn: vLearn, review: vReview, more: vMore })[view]();
 }
 function seg(act, k, opts, val, extra) {
   return '<div class="seg">' + opts.map((o) => '<button class="' + (val === o.id ? 'on' : '') + '" data-act="' + act + '" data-k="' + esc(k) + '" data-v="' + o.id + '"' + (extra || '') + '>' + esc(o.t) + '</button>').join('') + '</div>';
@@ -480,6 +636,7 @@ function vToday() {
         : '<div class="actions"><button class="btn" data-act="lived" data-k="' + c.id + '">I live by this</button><button class="btn ghost" data-act="need" data-k="' + c.id + '">I need this more</button><button class="link small" data-act="another">Another</button></div>') + '</div>';
   }
 
+  h += learnCard();
   const used = tradesInMonth(mk);
   h += '<h3 class="sec">This month</h3><div class="grid2">' +
     stat(used + ' / ' + D.settings.tradeBudget, 'Trades used', used > D.settings.tradeBudget ? 'bad' : '') +
@@ -821,6 +978,111 @@ function vScore() {
   return h;
 }
 
+/* ---------- Learn ---------- */
+let lesson = '';
+const TOOLKEY = 'ic_tools';
+let TOOLS = (function () { try { return JSON.parse(localStorage.getItem(TOOLKEY)) || {}; } catch (e) { return {}; } })();
+function curWeek() { const L = D.learn; if (!L.start) return 0; return Math.floor(diffDays(L.start, todayStr()) / 7) + 1; }
+function lessonIdx(id) { return LESSONS.findIndex((l) => l.id === id); }
+function money(n) { if (!isNum(n)) return '–'; const a = Math.round(Math.abs(n)); return (n < 0 ? '−' : n > 0 ? '+' : '') + '$' + a.toLocaleString('en-US'); }
+function learnCard() {
+  const L = D.learn;
+  if (!L.start) return '<div class="card"><div class="ch">Learning plan<span class="when">6 weeks</span></div><div class="small">16 short lessons on thinking straight about selling and sizing, each with a drill on your own holdings.</div><div class="actions"><button class="btn ghost" data-act="tab" data-v="learn">See the plan</button></div></div>';
+  const next = LESSONS.find((l) => !L.done[l.id]); if (!next) return '';
+  const behind = LESSONS.filter((l) => l.w <= curWeek() && !L.done[l.id]).length;
+  return '<div class="card"><div class="ch"><span class="kicker">Lesson ' + (lessonIdx(next.id) + 1) + ' of ' + LESSONS.length + ' · week ' + next.w + '</span><span class="when">' + (behind > 1 ? behind + ' due now' : '') + '</span></div>' +
+    '<div class="rt">' + esc(next.t) + '</div><div class="small mute">' + esc(next.idea) + '</div><div class="actions"><button class="btn" data-act="lopen" data-k="' + next.id + '">Open lesson</button></div></div>';
+}
+function tin(tool, k, label, ph) {
+  const v = (TOOLS[tool] || {})[k];
+  return '<label class="field"><span>' + label + '</span><input type="number" inputmode="decimal" step="any" data-tool="' + tool + '" data-k="' + k + '" value="' + esc(v === undefined ? '' : v) + '" placeholder="' + esc(ph || '') + '"></label>';
+}
+function toolHtml(name) {
+  let f = '';
+  if (name === 'breakeven') f = '<div class="grid2">' + tin(name, 'px', 'Price now', '55') + tin(name, 'mine', 'My value', '26') + '</div>' + tin(name, 'bull', 'Most bullish credible value', '75');
+  if (name === 'size') f = '<div class="grid2">' + tin(name, 'port', 'Portfolio value ($)', '4000000') + tin(name, 'budget', 'Loss budget (%)', String(D.settings.lossSpec)) + tin(name, 'px', 'Price now', '55') + tin(name, 'bad', 'Bad-case price', '7') + '</div>' + tin(name, 'held', 'Shares I hold (optional)', '10000');
+  if (name === 'regret') f = '<div class="grid2">' + tin(name, 'sh', 'Shares I hold', '10000') + tin(name, 'tgt', 'Target shares', '2000') + tin(name, 'px', 'Price now', '55') + tin(name, 'bull', 'Bull price', '75') + tin(name, 'mine', 'My value', '26') + tin(name, 'bad', 'Bad-case price', '7') + '</div>';
+  return '<div class="card"><div class="ch">Try it on your own numbers<span class="when">stays on this device</span></div>' + f + '<div id="to-' + name + '">' + toolOut(name) + '</div></div>';
+}
+function toolOut(name) {
+  const t = TOOLS[name] || {}, g = (k) => num(t[k]);
+  if (name === 'breakeven') {
+    const px = g('px'), m = g('mine'), b = g('bull');
+    if (!isNum(px) || !isNum(m) || !isNum(b)) return '<div class="small mute">Fill in all three.</div>';
+    if (b <= m) return '<div class="small mute">The bull value should be above your value.</div>';
+    if (px <= m) return '<div class="note good small">The price is at or below your value. You do not need the bull case at all.</div>';
+    const need = (px - m) / (b - m) * 100;
+    return '<div class="note ' + (need > 50 ? 'warn' : 'info') + ' small">To break even at this price you need to be <b>' + fmt(need, 0) + '% sure</b> the bull case is right' + (need > 100 ? ', which is more than certain: the price is above even the bull value' : '') + '. A 50/50 blend of the two values is $' + fmt((m + b) / 2, 2) + '.</div>';
+  }
+  if (name === 'size') {
+    const port = g('port'), bud = g('budget'), px = g('px'), bad = g('bad'), held = g('held');
+    if (!isNum(port) || !isNum(bud) || !isNum(px) || !isNum(bad)) return '<div class="small mute">Fill in portfolio, budget, price and bad-case price.</div>';
+    if (bad >= px) return '<div class="small mute">The bad-case price should be below today’s price.</div>';
+    const fall = (px - bad) / px, loss = port * bud / 100, val = loss / fall, sh = Math.floor(val / px);
+    let h = '<div class="note info small">Bad-case fall <b>' + fmt(fall * 100, 0) + '%</b>. Loss budget <b>' + money(loss).replace('+', '') + '</b>. Right size <b>' + money(val).replace('+', '') + '</b>, about <b>' + sh.toLocaleString('en-US') + ' shares</b> (' + fmt(val / port * 100) + '% of the portfolio).';
+    if (isNum(held)) { const hl = held * (px - bad); h += ' You hold ' + held.toLocaleString('en-US') + ': the bad case would cost ' + money(-hl) + ', ' + fmt(hl / port * 100) + '% of the portfolio, ' + fmt(hl / loss, 1) + '× the budget.'; }
+    return h + '</div>';
+  }
+  if (name === 'regret') {
+    const sh = g('sh'), tg = g('tgt'), px = g('px'), prices = [['Bull', g('bull')], ['My value', g('mine')], ['Bad case', g('bad')]];
+    if (!isNum(sh) || !isNum(tg) || !isNum(px)) return '<div class="small mute">Fill in shares, target and price, plus at least one outcome price.</div>';
+    const rows = prices.filter((p) => isNum(p[1]));
+    if (!rows.length) return '<div class="small mute">Add at least one outcome price.</div>';
+    return '<table class="tbl"><tr><th>If it goes to</th><th class="n">Hold ' + sh.toLocaleString('en-US') + '</th><th class="n">Hold ' + tg.toLocaleString('en-US') + '</th></tr>' +
+      rows.map((p) => { const a = sh * (p[1] - px), b = tg * (p[1] - px); return '<tr><td>' + p[0] + ' $' + fmt(p[1], 2) + '</td><td class="n ' + pctCls(a) + '">' + money(a) + '</td><td class="n ' + pctCls(b) + '">' + money(b) + '</td></tr>'; }).join('') + '</table>' +
+      '<div class="when" style="margin-top:6px">Trimming to the target turns ' + money(Math.abs((sh - tg) * px)).replace('+', '') + ' into cash at today’s price.</div>';
+  }
+  return '';
+}
+function vLesson(l) {
+  const L = D.learn, i = lessonIdx(l.id), mod = MODS.find((m) => m.id === l.m), done = L.done[l.id], ans = L.checks[l.id];
+  const rule = l.rule ? RULES.find((r) => r.id === l.rule) : null, nxt = LESSONS[i + 1];
+  let h = '<button class="link small" data-act="lopen" data-k="">← Learning plan</button>' +
+    '<div class="kicker" style="margin-top:10px">Lesson ' + (i + 1) + ' of ' + LESSONS.length + ' · ' + esc(mod.t) + '</div><div class="h2">' + esc(l.t) + '</div>' +
+    '<div class="card" style="margin-top:10px"><div class="rt">' + esc(l.idea) + '</div></div>' +
+    '<div class="card"><div class="ch">Why it is hard</div><div class="small">' + esc(l.hard) + '</div></div>' +
+    '<div class="card"><div class="ch">Worked example<span class="when">Northwind, made up</span></div><div class="small">' + esc(l.ex) + '</div>' +
+    (l.tbl ? '<table class="tbl" style="margin-top:8px">' + l.tbl.map((r, ri) => '<tr>' + r.map((c, ci) => (ri ? '<td class="' + (ci ? 'n' : '') + '">' : '<th class="' + (ci ? 'n' : '') + '">') + esc(c) + (ri ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table>' : '') +
+    (l.ex2 ? '<div class="small" style="margin-top:8px">' + esc(l.ex2) + '</div>' : '') + '</div>' +
+    '<div class="card"><div class="ch">' + (l.capstone ? 'The checklist' : 'How to apply it') + '</div><ol class="steps">' + l.steps.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol></div>';
+  if (l.tool) h += toolHtml(l.tool);
+  h += '<div class="card"><div class="ch">Drill: your own book</div><div class="q" style="margin-top:0">' + esc(l.drill) + '</div><textarea data-act="ldrill" data-k="' + l.id + '" placeholder="Write it down. It stays on this device.">' + esc(L.drills[l.id] || '') + '</textarea><div class="when" id="ldsaved"></div>' +
+    (l.toRule ? '<div class="actions"><button class="btn sm ghost" data-act="lrule" data-k="' + l.id + '">Add my answer to the rulebook</button></div>' : '') +
+    (l.capstone ? '<div class="actions"><button class="btn sm ghost" data-act="tab" data-v="decide">Log it as a decision</button></div>' : '') + '</div>';
+  if (l.q) {
+    h += '<div class="card"><div class="ch">Check yourself</div><div class="q" style="margin-top:0">' + esc(l.q.q) + '</div><div class="opts">' +
+      l.q.o.map((o, oi) => { const cls = ans === undefined ? '' : oi === l.q.a ? ' right' : oi === ans ? ' wrong' : ''; return '<button class="opt' + cls + '" data-act="lcheck" data-k="' + l.id + '" data-v="' + oi + '">' + esc(o) + '</button>'; }).join('') + '</div>' +
+      (ans !== undefined ? '<div class="note ' + (ans === l.q.a ? 'good' : 'warn') + ' small" style="margin:10px 0 0">' + (ans === l.q.a ? 'Right. ' : 'Not quite. ') + esc(l.q.why) + '</div>' : '') + '</div>';
+  }
+  if (rule) h += '<div class="card"><div class="ch"><span class="kicker">In your rulebook · ' + esc(catT(rule.cat)) + '</span></div><div class="small"><b>' + esc(rule.t) + '</b></div><div class="when">It comes up as a rule of the day, more often while it is new to you.</div></div>';
+  h += '<div class="actions"><button class="btn' + (done ? ' ghost' : '') + '" data-act="ldone" data-k="' + l.id + '">' + (done ? 'Done ' + nice(done) + ' (undo)' : 'Mark lesson done') + '</button>' +
+    (nxt ? '<button class="btn ghost" data-act="lopen" data-k="' + nxt.id + '">Next: ' + esc(nxt.t) + '</button>' : '') + '</div>';
+  return h;
+}
+function vLearn() {
+  const L = D.learn;
+  if (lesson) { const l = LESSONS.find((x) => x.id === lesson); if (l) return vLesson(l); lesson = ''; }
+  const nDone = LESSONS.filter((l) => L.done[l.id]).length, wk = curWeek();
+  let h = '<div class="kicker">Learning plan</div><div class="h2">Thinking straight about selling and sizing</div>' +
+    '<div class="small mute">16 lessons over 6 weeks, about three a week. Each takes around 15 minutes: a 5-minute read and a 10-minute drill on your own holdings. The examples use one made-up company so you can see the arithmetic before applying it to your book.</div>';
+  if (!L.start) h += '<div class="actions"><button class="btn big" data-act="lstart">Start the plan (week 1 starts today)</button></div>';
+  else {
+    const behind = LESSONS.filter((l) => l.w <= wk && !L.done[l.id]).length;
+    h += '<div class="card" style="margin-top:12px"><div class="ch">' + nDone + ' of ' + LESSONS.length + ' done<span class="when">week ' + Math.min(wk, 6) + ' of 6' + (wk > 6 ? ' (plan period over)' : '') + '</span></div>' +
+      '<div class="pbar"><i style="width:' + (nDone / LESSONS.length * 100) + '%"></i></div>' +
+      '<div class="when" style="margin-top:6px">' + (nDone === LESSONS.length ? 'Plan complete. Re-read the capstone whenever a big position tests you.' : behind ? plural(behind, 'lesson') + ' due by this week.' : 'On schedule.') + '</div></div>';
+  }
+  h += '<details class="card"' + (L.start ? '' : ' open') + '><summary><b>The running example</b><span class="when">tap to open</span></summary><dl class="kv">' + CASE.map((r) => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('') + '</dl></details>';
+  MODS.forEach((m) => {
+    const ls = LESSONS.filter((l) => l.m === m.id);
+    h += '<h3 class="sec">' + m.id + ' · ' + esc(m.t) + '</h3><div class="card">' + ls.map((l) => {
+      const d = L.done[l.id], due = L.start && l.w <= wk && !d;
+      return '<div class="check' + (d ? ' done' : '') + '" data-act="lopen" data-k="' + l.id + '"><div class="box"></div><div class="lbl"><div class="ct small"><b>' + (lessonIdx(l.id) + 1) + '. ' + esc(l.t) + '</b></div><div class="when">Week ' + l.w + (l.tool ? ' · calculator' : '') + (due ? ' · due' : '') + '</div></div></div>';
+    }).join('') + '</div>';
+  });
+  return h;
+}
+
 /* ---------- More ---------- */
 function vMore() {
   const g = ghCfg(), st = D.settings, lb = D.lastBackup, cards = allCards();
@@ -936,7 +1198,7 @@ function mergeIn(inc, quiet) {
     if (!D.decisions[id]) added++;
     D.decisions[id] = deepFill(D.decisions[id], inc.decisions[id]);
   }
-  ['days', 'weeks', 'cards', 'myCards', 'settings'].forEach((k) => { D[k] = deepFill(D[k] || {}, inc[k] || {}); });
+  ['days', 'weeks', 'cards', 'myCards', 'settings', 'learn'].forEach((k) => { D[k] = deepFill(D[k] || {}, inc[k] || {}); });
   if (quiet) persist(); else save();
   return added;
 }
@@ -985,7 +1247,16 @@ function rateCard(id, lived) {
 document.addEventListener('click', (e) => {
   const el = e.target.closest('[data-act]'); if (!el || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return;
   const a = el.dataset.act, k = el.dataset.k, v = el.dataset.v, s = todayStr();
-  if (a === 'tab') { view = v; render(); window.scrollTo(0, 0); return; }
+  if (a === 'tab') { view = v; if (v === 'learn') lesson = ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'lopen') { view = 'learn'; lesson = k || ''; render(); window.scrollTo(0, 0); return; }
+  if (a === 'lstart') { D.learn.start = s; save(); render(); toast('Week 1 starts today'); return; }
+  if (a === 'ldone') { if (D.learn.done[k]) delete D.learn.done[k]; else D.learn.done[k] = s; save(); render(); if (D.learn.done[k]) toast('Lesson done'); return; }
+  if (a === 'lcheck') { D.learn.checks[k] = Number(v); save(); render(); return; }
+  if (a === 'lrule') {
+    const t = (D.learn.drills[k] || '').trim(); if (!t) { toast('Write your answer first'); return; }
+    const cid = 'u' + uid(); D.myCards[cid] = { id: cid, cat: 'mind', t: t.split('\n')[0].slice(0, 200), why: 'My own repeat pattern, from the learning plan.' };
+    save(); toast('Added to your rulebook'); return;
+  }
   if (a === 'state' || a === 'urge') { const x = dayRec(k, true); x[a] = x[a] === v ? null : v; save(); render(); return; }
   if (a === 'lived' || a === 'need') { rateCard(k, a === 'lived'); return; }
   if (a === 'another') {
@@ -1060,6 +1331,15 @@ document.addEventListener('input', (e) => {
     draft[ds_.f] = el.type === 'range' ? Number(el.value) : el.value;
     if (el.type === 'range') { const lv = document.getElementById('lv-' + ds_.f); if (lv) lv.textContent = el.value + ds_.suf; }
     keepDraft(); const w = $('#warn'); if (w && ds_.f !== 'fw') w.innerHTML = warnHtml(); return;
+  }
+  if (ds_.tool) {
+    const t = TOOLS[ds_.tool] = TOOLS[ds_.tool] || {}; t[ds_.k] = el.value;
+    try { localStorage.setItem(TOOLKEY, JSON.stringify(TOOLS)); } catch (e2) {}
+    const o = document.getElementById('to-' + ds_.tool); if (o) o.innerHTML = toolOut(ds_.tool); return;
+  }
+  if (ds_.act === 'ldrill') {
+    D.learn.drills[ds_.k] = el.value;
+    clearTimeout(noteTimer); noteTimer = setTimeout(() => { save(); const s = $('#ldsaved'); if (s) s.textContent = 'Saved'; }, 600); return;
   }
   if (ds_.act === 'dnote') {
     dayRec(ds_.k, true).note = el.value;

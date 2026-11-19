@@ -16,6 +16,10 @@ no live market data (the user types prices in).
   maxPos** (the user's own framework rule: max-tolerable-loss / downside). Budgets: `settings.lossSpec` (speculative)
   and `settings.lossCore` (core), as % of portfolio; each held decision carries `kind` (spec|core) and `dn` (bad-case
   fall %). Conviction is recorded and scored but no longer sets size (v2).
+- **Learn** (v3): a 6-week, 16-lesson plan on selling and sizing (`MODS`, `LESSONS`, `CASE`). Each lesson =
+  idea, why it is hard, worked example on a made-up company (Northwind, NWTX), steps, optional calculator
+  (`breakeven`, `size`, `regret`; inputs kept in `ic_tools`, not backed up), a drill on the user's own book, a
+  self-check and a linked rule card. **Keep examples fictional: never the user's real tickers or positions.**
 - **Review**: checkpoints at 30/90/365 days, weekly reflection, scorecard (process-vs-outcome matrix,
   calibration + Brier, behaviour cost table, sell regret, recurring mistake tags).
 
@@ -39,8 +43,9 @@ no live market data (the user types prices in).
    thesis, variant, kill, premortem, why[], planned, fw, fwWhy, clean, emo[], pre{}, flags[], status
    (cooling|done|dropped), coolUntil, doneAt, droppedAt, override, cps{30|90|365: {at, px, th, pr, tags[], note}}}`;
    `days[YYYY-MM-DD] = {state, urge, note, card, cardDone}`; `weeks[monday] = {emo, rule, change, at}`;
-   `cards[id] = {box, due, off}`; `myCards[id] = {id, cat, t, why, pre, deleted}`; `deleted[id] = iso`.
-   Rule, tag and emotion ids are data keys: never rename or reuse them.
+   `cards[id] = {box, due, off}`; `myCards[id] = {id, cat, t, why, pre, deleted}`; `deleted[id] = iso`;
+   `learn = {start, done{lessonId: date}, drills{lessonId: text}, checks{lessonId: optionIndex}}`.
+   Rule, lesson, tag and emotion ids are data keys: never rename or reuse them.
 5. **Merge never drops data:** restore and GitHub sync use `mergeIn` (device wins per field, missing
    fields filled; `deleted` tombstones stop a deleted decision coming back). Keep it that way.
 6. Colours are CSS tokens with a dark-mode override; never hard-code colours in markup.
