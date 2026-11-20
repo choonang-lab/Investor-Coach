@@ -153,7 +153,7 @@ ol.steps li{margin:5px 0}
 <nav id="tabbar"></nav>
 <div id="toast"></div>
 <script>
-const BUILD = 'v4';
+const BUILD = 'v5';
 const KEY = 'ic_data';
 const GHKEY = 'ic_gh';
 const DIRTY = 'ic_dirty';
@@ -221,7 +221,17 @@ const RULES = [
   { id: 'i7', cat: 'impulse', t: 'If it does not shrink my bad-case loss, it is not a trim.', why: 'Covered calls, waiting for the next report and moving the target all feel like action and leave the risk where it was.' },
   { id: 'm5', cat: 'mind', t: 'A rising price is not proof I was right. What fact changed?', why: 'Every day a held position rises after a rule fires trains you to ignore the rule.' },
   { id: 'm6', cat: 'mind', t: 'Override my framework only for an input, never for a feeling.', why: 'Feelings arrive dressed as reasons: momentum, regret, "the bulls might be right".' },
-  { id: 'm7', cat: 'mind', t: 'Write limits before they are tested. Change them only on a quiet day.', why: 'In the moment, every limit looks as if it was written for a different situation.' }
+  { id: 'm7', cat: 'mind', t: 'Write limits before they are tested. Change them only on a quiet day.', why: 'In the moment, every limit looks as if it was written for a different situation.' },
+  { id: 'm8', cat: 'mind', t: 'Write exit triggers so that any one of them is enough.', why: 'An exit joined by AND can be impossible to fire: if one part is easy to pass, the business can get worse and the rule never trips.' },
+  { id: 'm9', cat: 'mind', t: 'A trigger I have not written down is not a trigger.', why: 'A price exit kept in your head gets renegotiated when the price arrives.' },
+  { id: 'm10', cat: 'mind', t: 'When the thesis changes, retire the old tripwires and write new ones.', why: 'Old triggers keep watching a story that no longer exists, while the new risks go unwatched.' },
+  { id: 'a15', cat: 'analysis', t: 'Read the bad news I did not plan to look for.', why: 'A pre-committed test only checks what you expected. Deterioration somewhere else still counts.' },
+  { id: 'a16', cat: 'analysis', t: 'When the facts change, name the bet again: what am I being paid for now?', why: 'A stock above an agreed takeover price is no longer a value or spread position. It is a bet on a higher bid, with a different payoff and a different end date.' },
+  { id: 'a17', cat: 'analysis', t: 'A non-binding offer is the bidder\u2019s option, not mine.', why: 'With no financing, break fee or regulatory commitments, a higher headline can vanish at no cost to the bidder.' },
+  { id: 'a18', cat: 'analysis', t: 'Map who decides and what each of them wants before estimating the odds.', why: 'Vote rules and the incentives of large holders often decide a deal more than the headline price. My own vote is a tool too.' },
+  { id: 'a19', cat: 'analysis', t: 'Check how each payout is taxed before counting it.', why: 'Deal fees, ticking fees and special dividends can be taxed or withheld differently from a capital gain.' },
+  { id: 's10', cat: 'selling', t: 'Give every leftover bet an end point: the price, date or event when it goes.', why: 'Optionality decays. Without an end point, a small residual becomes a permanent distraction.' },
+  { id: 's11', cat: 'selling', t: 'A loser finally turning green is not a reason to sell or to hold.', why: 'Relief pulls you to cash in or to let it ride. Work it out from today\u2019s price and value, and grade the old decision on its process.' }
 ];
 
 /* ---------- Learning plan: thinking straight about selling and sizing ----------
@@ -231,7 +241,8 @@ const MODS = [
   { id: 2, t: 'Test your own model honestly' },
   { id: 3, t: 'Size by what you can lose' },
   { id: 4, t: 'Act on what you decided' },
-  { id: 5, t: 'Learn from your pattern' }
+  { id: 5, t: 'Learn from your pattern' },
+  { id: 6, t: 'When the story changes' }
 ];
 const CASE = [
   ['Company', 'Northwind Therapeutics (NWTX), made up'],
@@ -242,6 +253,16 @@ const CASE = [
   ['Most bullish broker', '$75'],
   ['Your bad-case floor', '$7'],
   ['Your own rule', 'Trim above $45. It fired ten days ago. You have not sold']
+];
+const CASE2 = [
+  ['Company', 'Harbor Clinics (HBRC), made up, used in module 6'],
+  ['You own', '2,000 shares, average cost $30'],
+  ['Original thesis', 'Sell a hospital, use the money to pay down debt, get re-rated'],
+  ['What happened', 'Fell to $18. At results the proceeds went to debt, but there was no leverage target, margins fell and cash flow no longer covered interest'],
+  ['Your rules', 'Exit if "proceeds go to buybacks AND leverage stays above 4\u00d7". A $13 stop you never wrote down'],
+  ['Then', 'A buyer agreed to take it private at $28, raised to $30 cash after a rival made a non-binding $34 approach'],
+  ['Who decides', 'A 40% holder keeps its stake in the new owner and backs the agreed deal. Approval also needs a majority of the independent shareholders\u2019 votes'],
+  ['Now', '$32: your first profit on it in a year']
 ];
 const LESSONS = [
   { id: 'l1', m: 1, w: 1, t: 'Holding is buying again', rule: 's1',
@@ -357,8 +378,37 @@ const LESSONS = [
     ex: 'Work through the checklist below on your own largest position, writing a line for each step.',
     steps: ['Clean slate: how much would I buy with cash today?', 'Cost covered: does my answer change without the cost?', 'What facts changed since my last decision?', 'How sure must I be in the bull case to justify the price?', 'Does the price survive my model at its most generous?', 'Which recent news moved an input?', 'Right size: loss budget ÷ honest bad-case fall.', 'Regret table at the right size.', 'Target size and the way back in.', 'Tranche dates.', 'Avoidance check: am I using options or waiting to dodge the sale?', 'If I override, which input do I name?'],
     drill: 'Write your decision: the target size, the tranche dates and the conditions for adding back.',
-    q: null }
+    q: null },
+  { id: 'l17', m: 6, w: 7, t: 'Name the bet again when the facts change', rule: 'a16', tool: 'breakeven', co: 'Harbor Clinics',
+    idea: 'When something big changes, ask what you are now being paid for. The answer can be a completely different bet from the one you bought.',
+    hard: 'The position looks the same on your screen, same ticker and same shares, so it feels like the same decision. It is not.',
+    ex: 'HBRC trades at $32 with a $30 cash deal agreed. Above $30 you no longer own a turnaround or a deal spread: you own a bet that someone pays more. If nothing changes you get $30, about \u22126%. If the rival\u2019s $34 becomes real you make about +6%. If the deal breaks it could fall back toward $22, about \u221231%. How likely must the higher bid be? (32 \u2212 30) \u00f7 (34 \u2212 30) = 50%, before allowing for the chance of a break.',
+    steps: ['Write the bet in one line as it stands today, not as it stood when you bought.', 'List the outcomes and what each pays from today\u2019s price.', 'In the calculator, put the agreed price as "my value" and the higher bid as the bull value. Do you believe the higher bid that much?'],
+    drill: 'Pick a holding where something big changed since you bought. In one line, what are you being paid for now? Would you make that bet with fresh cash?',
+    q: { q: 'A stock trades at $32 with a $30 cash deal agreed and a rival talking about $34. What do you own?', o: ['A safe deal spread', 'A bet that someone pays more than $30', 'A turnaround'], a: 1, why: 'Above the deal price the spread is negative. The only way to gain is a higher bid, so that is the bet.' } },
+  { id: 'l18', m: 6, w: 7, t: 'Tripwires that can actually fire', rule: 'm8', co: 'Harbor Clinics',
+    idea: 'An exit rule is only useful if it would trigger in the bad case. Make each trigger enough on its own, write it down, and replace the set when the story changes.',
+    hard: 'Rules written while hopeful tend to stack conditions with AND, which makes them easy to pass. A stop kept in your head gets moved when the price arrives.',
+    ex: 'Your HBRC exit was "proceeds go to buybacks AND leverage stays above 4\u00d7". The proceeds went to debt, so the rule could never fire, even though margins fell and cash flow stopped covering interest. Your $13 stop was never written anywhere. When the takeover came, both rules were still watching a deleveraging story that no longer existed.',
+    steps: ['Split every AND exit into separate triggers, each enough on its own.', 'Write each one down with its action, somewhere you will see it.', 'When the thesis changes, retire the old triggers and write new ones the same day.', 'Read the bad news you did not plan for. It still counts.'],
+    drill: 'Look at the exit rules for one holding. Would any of them fire if the business quietly got worse? Rewrite one so that it would.',
+    q: { q: 'Exit rule: "sell if sales fall AND debt rises". Sales fall, debt stays flat, margins collapse. What happens?', o: ['The rule fires', 'Nothing: one part of the AND failed', 'You sell half'], a: 1, why: 'With AND, both parts must happen. Write triggers that work alone, and judge the margin collapse on its merits.' } },
+  { id: 'l19', m: 6, w: 8, t: 'Who decides?', rule: 'a18', co: 'Harbor Clinics',
+    idea: 'In any deal, vote or restructuring, find out who can say yes or no and what each of them wants, before you estimate the odds.',
+    hard: 'The headline price is visible and simple. Vote rules and side agreements are buried in the filings.',
+    ex: 'HBRC\u2019s 40% holder keeps its stake in the new owner, so it prefers the agreed buyer, not the rival. The rival\u2019s $34 is non-binding: no financing, no break fee, no regulatory commitments, so it can vanish at no cost to them. But approval also needs a majority of the independent shareholders\u2019 votes. That gives the minority, including you, real leverage: votes against put pressure on the buyer to pay more. Abstaining counts for nothing.',
+    steps: ['Find the approval rule in the filing: who votes, and what majority is needed.', 'List the large holders and what each gets in each outcome.', 'Check whether each offer is binding: financing, a break fee, regulatory commitments.', 'Decide how you will vote, and then vote.'],
+    drill: 'For one holding facing a vote, deal or refinancing: who are the two or three parties that decide, and what does each want?',
+    q: { q: 'A rival makes a non-binding offer 15% above the agreed deal. Which is true?', o: ['It sets a floor under the price', 'It can be withdrawn at no cost to the rival', 'The board must accept it'], a: 1, why: 'Non-binding means the rival holds the option. Financing, a break fee and regulatory commitments are what make an offer real.' } },
+  { id: 'l20', m: 6, w: 8, t: 'When a loser finally turns green', rule: 's11', co: 'Harbor Clinics',
+    idea: 'The first time a long loser shows a profit brings relief, and relief makes poor decisions. Decide from today\u2019s price and value, and grade the old decision apart from the lucky result.',
+    hard: 'Relief pulls two ways at once: lock it in before it disappears, or let it ride because things are finally going right. A good result also tempts you to believe holding on was a good decision.',
+    ex: 'HBRC went from $30 to $18 and back to $32 on a takeover. The original thesis never worked: no leverage target, falling margins. The profit came from a buyer, not from your reasons, so grade it "right for the wrong reason". Today\u2019s choice is about \u22126% if nothing changes, +6% if a higher bid comes and \u221231% if the deal breaks. If you keep a small stake for the higher bid, give it an end point: exit below $30.50, or if no binding rival offer arrives before the vote. Check how any ticking fee would be taxed for you.',
+    steps: ['Grade the old decision on its process, not its profit.', 'Decide from today\u2019s numbers, as if you held cash.', 'If you keep a small stake, give it an end point and check how the payout is taxed.'],
+    drill: 'Think of a holding that recovered after a long drawdown. Did it recover because of your thesis or something else? What would you do with it as cash today?',
+    q: { q: 'Your thesis failed its own test, then a takeover made you money. How should you grade the decision?', o: ['Good decision, good result', 'Right for the wrong reason: weak process, lucky result', 'Bad luck'], a: 1, why: 'The result came from an event your thesis did not predict. Counting it as skill teaches the wrong lesson.' } }
 ];
+const PLAN_WEEKS = Math.max.apply(null, LESSONS.map((l) => l.w));
 
 const PROMPTS = [
   'What did I want to do in the market today, and did I?',
@@ -1130,7 +1180,7 @@ function lessonIdx(id) { return LESSONS.findIndex((l) => l.id === id); }
 function money(n) { if (!isNum(n)) return '–'; const a = Math.round(Math.abs(n)); return (n < 0 ? '−' : n > 0 ? '+' : '') + '$' + a.toLocaleString('en-US'); }
 function learnCard() {
   const L = D.learn;
-  if (!L.start) return '<div class="card"><div class="ch">Learning plan<span class="when">6 weeks</span></div><div class="small">16 short lessons on thinking straight about selling and sizing, each with a drill on your own holdings.</div><div class="actions"><button class="btn ghost" data-act="tab" data-v="learn">See the plan</button></div></div>';
+  if (!L.start) return '<div class="card"><div class="ch">Learning plan<span class="when">' + PLAN_WEEKS + ' weeks</span></div><div class="small">' + LESSONS.length + ' short lessons on thinking straight about selling, sizing and stories that change, each with a drill on your own holdings.</div><div class="actions"><button class="btn ghost" data-act="tab" data-v="learn">See the plan</button></div></div>';
   const next = LESSONS.find((l) => !L.done[l.id]); if (!next) return '';
   const behind = LESSONS.filter((l) => l.w <= curWeek() && !L.done[l.id]).length;
   return '<div class="card"><div class="ch"><span class="kicker">Lesson ' + (lessonIdx(next.id) + 1) + ' of ' + LESSONS.length + ' · week ' + next.w + '</span><span class="when">' + (behind > 1 ? behind + ' due now' : '') + '</span></div>' +
@@ -1184,7 +1234,7 @@ function vLesson(l) {
     '<div class="kicker" style="margin-top:10px">Lesson ' + (i + 1) + ' of ' + LESSONS.length + ' · ' + esc(mod.t) + '</div><div class="h2">' + esc(l.t) + '</div>' +
     '<div class="card" style="margin-top:10px"><div class="rt">' + esc(l.idea) + '</div></div>' +
     '<div class="card"><div class="ch">Why it is hard</div><div class="small">' + esc(l.hard) + '</div></div>' +
-    '<div class="card"><div class="ch">Worked example<span class="when">Northwind, made up</span></div><div class="small">' + esc(l.ex) + '</div>' +
+    '<div class="card"><div class="ch">Worked example<span class="when">' + esc(l.co || 'Northwind') + ', made up</span></div><div class="small">' + esc(l.ex) + '</div>' +
     (l.tbl ? '<table class="tbl" style="margin-top:8px">' + l.tbl.map((r, ri) => '<tr>' + r.map((c, ci) => (ri ? '<td class="' + (ci ? 'n' : '') + '">' : '<th class="' + (ci ? 'n' : '') + '">') + esc(c) + (ri ? '</td>' : '</th>')).join('') + '</tr>').join('') + '</table>' : '') +
     (l.ex2 ? '<div class="small" style="margin-top:8px">' + esc(l.ex2) + '</div>' : '') + '</div>' +
     '<div class="card"><div class="ch">' + (l.capstone ? 'The checklist' : 'How to apply it') + '</div><ol class="steps">' + l.steps.map((s) => '<li>' + esc(s) + '</li>').join('') + '</ol></div>';
@@ -1207,15 +1257,16 @@ function vLearn() {
   if (lesson) { const l = LESSONS.find((x) => x.id === lesson); if (l) return vLesson(l); lesson = ''; }
   const nDone = LESSONS.filter((l) => L.done[l.id]).length, wk = curWeek();
   let h = '<div class="kicker">Learning plan</div><div class="h2">Thinking straight about selling and sizing</div>' +
-    '<div class="small mute">16 lessons over 6 weeks, about three a week. Each takes around 15 minutes: a 5-minute read and a 10-minute drill on your own holdings. The examples use one made-up company so you can see the arithmetic before applying it to your book.</div>';
+    '<div class="small mute">' + LESSONS.length + ' lessons over ' + PLAN_WEEKS + ' weeks, two or three a week. Each takes around 15 minutes: a 5-minute read and a 10-minute drill on your own holdings. The examples use made-up companies so you can see the arithmetic before applying it to your book.</div>';
   if (!L.start) h += '<div class="actions"><button class="btn big" data-act="lstart">Start the plan (week 1 starts today)</button></div>';
   else {
     const behind = LESSONS.filter((l) => l.w <= wk && !L.done[l.id]).length;
-    h += '<div class="card" style="margin-top:12px"><div class="ch">' + nDone + ' of ' + LESSONS.length + ' done<span class="when">week ' + Math.min(wk, 6) + ' of 6' + (wk > 6 ? ' (plan period over)' : '') + '</span></div>' +
+    h += '<div class="card" style="margin-top:12px"><div class="ch">' + nDone + ' of ' + LESSONS.length + ' done<span class="when">week ' + Math.min(wk, PLAN_WEEKS) + ' of ' + PLAN_WEEKS + (wk > PLAN_WEEKS ? ' (plan period over)' : '') + '</span></div>' +
       '<div class="pbar"><i style="width:' + (nDone / LESSONS.length * 100) + '%"></i></div>' +
       '<div class="when" style="margin-top:6px">' + (nDone === LESSONS.length ? 'Plan complete. Re-read the capstone whenever a big position tests you.' : behind ? plural(behind, 'lesson') + ' due by this week.' : 'On schedule.') + '</div></div>';
   }
-  h += '<details class="card"' + (L.start ? '' : ' open') + '><summary><b>The running example</b><span class="when">tap to open</span></summary><dl class="kv">' + CASE.map((r) => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('') + '</dl></details>';
+  h += '<details class="card"' + (L.start ? '' : ' open') + '><summary><b>The running example</b><span class="when">tap to open</span></summary><dl class="kv">' + CASE.map((r) => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('') + '</dl></details>' +
+    '<details class="card"><summary><b>The second example (module 6)</b><span class="when">tap to open</span></summary><dl class="kv">' + CASE2.map((r) => '<dt>' + esc(r[0]) + '</dt><dd>' + esc(r[1]) + '</dd>').join('') + '</dl></details>';
   MODS.forEach((m) => {
     const ls = LESSONS.filter((l) => l.m === m.id);
     h += '<h3 class="sec">' + m.id + ' · ' + esc(m.t) + '</h3><div class="card">' + ls.map((l) => {
