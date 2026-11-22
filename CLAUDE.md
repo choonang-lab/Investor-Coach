@@ -16,6 +16,12 @@ no live market data (the user types prices in).
   fact), and a "Before you sell/hold" checklist (`PRE_SELL`, `PRE_HOLD`). A trim or sale that follows a rule or the
   framework (`riskReducing`) is never cooled off; fear-only sales still are. `settings.port` (optional portfolio
   value) turns shares into % of portfolio via `derive()`.
+- **Step plans (v8):** Buy, Add, Trim and Sell can be split into 2–12 steps (`planCard`, `trancheList`), **by date**
+  (daily … monthly; averaging over time) or **by price** (a ladder, `draft.lad`), in equal shares or equal dollars
+  (`usesDollars`; a sale by date always uses equal shares). Dated steps show on Today when due; price steps wait on
+  Book (`planLine`) with Done/Skip, and Today nudges them. Done asks for an optional fill price; `edge()` scores from
+  `avgFill(d)` when fills exist. An open plan for a ticker makes any other trade on it an off-plan warning. Plan meta is
+  stored as `plan {mode, split, gap}`, `totSh`, `totAmt`; steps carry `{n, of, date|null, px|null, sh, amt, st, why, at, fill}`.
 - **Guarded edit (v7):** Edit / Correct facts on each decision (Review → All decisions, and Book). Within
   `EDIT_HOURS` (24 h) of `at`, the Decide form reopens with `draft.editId` and saving overwrites the decision in place
   (`applyFullEdit`, sale plan rebuilt only if no step is done yet). After that only facts can change (`vEditFacts` /

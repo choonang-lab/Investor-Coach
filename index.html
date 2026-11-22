@@ -153,7 +153,7 @@ ol.steps li{margin:5px 0}
 <nav id="tabbar"></nav>
 <div id="toast"></div>
 <script>
-const BUILD = 'v7';
+const BUILD = 'v8';
 const KEY = 'ic_data';
 const GHKEY = 'ic_gh';
 const DIRTY = 'ic_dirty';
@@ -564,10 +564,22 @@ function dueList() {
   return out.sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 function latestCp(d) { const ks = Object.keys(d.cps || {}).map(Number).sort((a, b) => b - a); return ks.length ? d.cps[ks[0]] : null; }
+/* Entry price for scoring: the average fill of done plan steps when any were recorded, else the logged price. */
+function avgFill(d) {
+  const f = (d.tranches || []).filter((t) => t.st === 'done' && isNum(t.fill));
+  if (!f.length) return null;
+  const w = f.map((t) => (isNum(t.sh) && t.sh > 0 ? t.sh : 1)), W = w.reduce((a, b) => a + b, 0);
+  return f.reduce((a, t, i) => a + t.fill * w[i], 0) / W;
+}
 function edge(d, cp) {
-  if (!cp || !isNum(num(cp.px)) || !isNum(num(d.px)) || !num(d.px)) return null;
+  const base = isNum(avgFill(d)) ? avgFill(d) : num(d.px);
+  if (!cp || !isNum(num(cp.px)) || !isNum(base) || !base) return null;
   const dir = T(d.type).dir; if (!dir) return null;
-  return (num(cp.px) - num(d.px)) / num(d.px) * 100 * dir;
+  return (num(cp.px) - base) / base * 100 * dir;
+}
+function stepSize(t) {
+  const $ = isNum(t.amt) ? '$' + Math.round(t.amt).toLocaleString('en-US') : '', sh = t.sh ? t.sh.toLocaleString('en-US') + ' shares' : '';
+  return $ && sh ? $ + ' (\u2248' + sh + ')' : $ || sh;
 }
 function thScore(th) { return th === 'yes' ? 1 : th === 'partly' ? 0.5 : th === 'no' ? 0 : null; }
 function scored() {
@@ -655,17 +667,20 @@ function vToday() {
   all.forEach((d) => {
     if (d.status !== 'done' || !d.tranches) return;
     d.tranches.forEach((t, i) => {
-      if (t.st || t.date > s) return;
+      if (t.st || !t.date || t.date > s) return;
       const late = diffDays(t.date, s);
-      h += '<div class="card cool"><div class="kicker">Step ' + t.n + ' of ' + t.of + ' due' + (late > 0 ? ' \u00b7 ' + plural(late, 'day') + ' late' : '') + '</div><div class="h2">' + T(d.type).t + ' ' + (t.sh ? t.sh.toLocaleString('en-US') + ' ' : '') + esc(d.tk) + '</div>' +
+      h += '<div class="card cool"><div class="kicker">Step ' + t.n + ' of ' + t.of + ' due' + (late > 0 ? ' \u00b7 ' + plural(late, 'day') + ' late' : '') + '</div><div class="h2">' + T(d.type).t + ' ' + (stepSize(t) ? stepSize(t) + ' of ' : '') + esc(d.tk) + '</div>' +
         '<div class="small">Planned for ' + nice(t.date) + '. You decided this on ' + nice(d.date) + ': ' + esc(d.thesis) + '</div>' +
         '<div class="actions"><button class="btn" data-act="trdo" data-k="' + d.id + '" data-v="' + i + '">Done</button><button class="btn ghost" data-act="trskip" data-k="' + d.id + '" data-v="' + i + '">Skip (needs a new fact)</button></div></div>';
     });
   });
 
   const nudges = [];
+  const pxSteps = [];
+  all.forEach((d) => { if (d.status === 'done') (d.tranches || []).forEach((t) => { if (!t.st && !t.date && isNum(t.px)) pxSteps.push(d.tk + ' ' + T(d.type).t.toLowerCase() + ' at $' + fmt(t.px, 2)); }); });
   const due = dueList();
   if (due.length) nudges.push({ lvl: 'warn', t: plural(due.length, 'decision review') + ' due', act: 'tab', v: 'review', b: 'Review' });
+  if (pxSteps.length) nudges.push({ lvl: 'info', t: 'Price steps waiting for their level: ' + pxSteps.join(', '), act: 'tab', v: 'book', b: 'Book' });
   const hs = holdings();
   const gaps = hs.filter(fwMismatch);
   if (gaps.length) nudges.push({ lvl: 'bad', t: 'Acting against your own framework: ' + gaps.map((d) => d.tk + ' (says ' + d.fw + ', you ' + T(d.type).t.toUpperCase() + ')').join(', '), act: 'tab', v: 'book', b: 'Book' });
@@ -737,7 +752,7 @@ function preFor(ty) {
 function newDraft(base) {
   return Object.assign({ type: '', date: todayStr(), tk: '', px: '', size: '', conv: 5, p: 60, up: '', dn: '', kind: 'spec', thesis: '', variant: '', kill: '',
     premortem: '', why: [], planned: '', fw: '', fwWhy: '', clean: '', emo: [], pre: {},
-    shNow: '', shAfter: '', mine: '', bull: '', bad: '', back: '', tr: '1', gap: '3' }, base || {});
+    shNow: '', shAfter: '', mine: '', bull: '', bad: '', back: '', tr: '1', gap: '3', pmode: 'date', split: 'shares', lad: [], totSh: '', totAmt: '' }, base || {});
 }
 function loadDraft() { try { const r = localStorage.getItem(DRAFT); if (r) return newDraft(JSON.parse(r)); } catch (e) {} return newDraft(); }
 function keepDraft() { try { localStorage.setItem(DRAFT, JSON.stringify(draft)); } catch (e) {} }
@@ -781,18 +796,51 @@ function sellCalc(F) {
   if (!rows.length && !tbl) return '<div class="small mute">Fill in the price, your value, the bull value and the bad-case price to see the numbers.</div>';
   return rows.map((r) => '<div class="tw"><div class="dot"></div><div class="small">' + r + '</div></div>').join('') + tbl;
 }
+/* Step plans for Buy, Add, Trim and Sell: by date (averaging over time) or by price (a ladder),
+   in equal shares or equal dollars. A sale by date always uses equal shares (future prices are unknown). */
+const PLANNED = ['buy', 'add', 'trim', 'sell'];
+function usesDollars(F) { return F.split === 'dollars' && !(SIDE[F.type] === 'out' && F.pmode !== 'price'); }
 function trancheList(F, start) {
-  const n = Number(F.tr) || 1, gap = Number(F.gap) || 3, a = num(F.shNow), b = F.type === 'sell' ? 0 : num(F.shAfter);
-  if (n < 2) return [];
-  const qty = isNum(a) && isNum(b) && a > b ? a - b : null, each = qty === null ? null : Math.floor(qty / n), out = [];
-  for (let i = 0; i < n; i++) out.push({ n: i + 1, of: n, date: addDays(start, i * gap), sh: qty === null ? null : (i < n - 1 ? each : qty - each * (n - 1)), st: '' });
+  const n = Math.max(1, Math.min(12, Number(F.tr) || 1));
+  if (n < 2 || !PLANNED.includes(F.type)) return [];
+  const byPrice = F.pmode === 'price', gap = Number(F.gap) || 3, lad = (F.lad || []).map(num), dollars = usesDollars(F), out = [];
+  for (let i = 0; i < n; i++) out.push({ n: i + 1, of: n, date: byPrice ? null : addDays(start, i * gap), px: byPrice && isNum(lad[i]) ? lad[i] : null, sh: null, amt: null, st: '' });
+  const split = (qty) => { const each = Math.floor(qty / n); out.forEach((t, i) => { t.sh = i < n - 1 ? each : qty - each * (n - 1); }); };
+  if (SIDE[F.type] === 'out') {
+    const a = num(F.shNow), b = F.type === 'sell' ? 0 : num(F.shAfter);
+    if (!(isNum(a) && isNum(b) && a > b)) return out;
+    const qty = a - b;
+    if (dollars && out.every((t) => isNum(t.px) && t.px > 0)) {
+      const inv = out.map((t) => 1 / t.px), S = inv.reduce((x, y) => x + y, 0); let left = qty;
+      out.forEach((t, i) => { t.sh = i < n - 1 ? Math.floor(qty * inv[i] / S) : left; left -= t.sh; t.amt = t.sh * t.px; });
+    } else split(qty);
+  } else if (dollars) {
+    const amt = num(F.totAmt);
+    if (isNum(amt)) out.forEach((t) => { t.amt = amt / n; if (isNum(t.px) && t.px > 0) t.sh = Math.floor(t.amt / t.px); });
+  } else if (isNum(num(F.totSh))) split(num(F.totSh));
   return out;
 }
 function trancheHtml() {
-  const list = trancheList(draft, draft.date || todayStr());
-  if (!list.length) return '<div class="when">Selling everything in one go. Splitting into steps on fixed dates makes a hard sale easier to follow through.</div>';
-  return '<div class="small" style="margin-top:6px">' + list.map((t) => 'Step ' + t.n + ': ' + (t.sh ? t.sh.toLocaleString('en-US') + ' shares' : '1/' + t.of + ' of the sale') + ' on ' + nice(t.date)).join('<br>') + '</div>' +
-    '<div class="when">Each step shows on Today on its date. Skipping one needs a new fact.</div>';
+  const list = trancheList(draft, draft.date || todayStr()), out = SIDE[draft.type] === 'out';
+  if (!list.length) return '<div class="when">All in one go. ' + (out ? 'Splitting a hard sale into steps makes it easier to follow through.' : 'Splitting a buy into steps averages your price over time or over price levels.') + '</div>';
+  return '<div class="small" style="margin-top:6px">' + list.map((t) => 'Step ' + t.n + ': ' + (stepSize(t) || '1/' + t.of) + (t.date ? ' on ' + nice(t.date) : isNum(t.px) ? ' at $' + fmt(t.px, 2) : ' at a price still to set')).join('<br>') + '</div>' +
+    '<div class="when">' + (draft.pmode === 'price' ? 'Price steps wait on Book until you mark them done. Set IBKR alerts at the same prices.' : 'Each step shows on Today on its date.') + ' Skipping a step needs a new fact.</div>';
+}
+function planCard(F) {
+  const n = Number(F.tr) || 1, byPrice = F.pmode === 'price', out = SIDE[F.type] === 'out';
+  let h = '<div class="card"><div class="ch">How I will do it</div><div class="q" style="margin-top:0">Steps</div>' +
+    seg('fset', 'tr', [{ id: '1', t: 'All' }, { id: '2', t: '2' }, { id: '3', t: '3' }, { id: '4', t: '4' }, { id: '6', t: '6' }, { id: '8', t: '8' }, { id: '12', t: '12' }], String(F.tr || '1'));
+  if (n > 1) {
+    h += '<div class="q">Trigger</div>' + seg('fset', 'pmode', [{ id: 'date', t: 'By date' }, { id: 'price', t: 'By price' }], byPrice ? 'price' : 'date');
+    if (byPrice) {
+      h += '<div class="q">Price for each step</div><div class="grid2">' + Array.from({ length: n }, (_, i) => { const v = (F.lad || [])[i]; return '<label class="field"><span>Step ' + (i + 1) + '</span><input type="number" inputmode="decimal" step="any" data-lad="' + i + '" value="' + esc(v == null ? '' : v) + '"></label>'; }).join('') + '</div>';
+    } else {
+      h += '<div class="q">Spacing</div>' + seg('fset', 'gap', [{ id: '1', t: 'Daily' }, { id: '3', t: '3 days' }, { id: '7', t: 'Weekly' }, { id: '14', t: '2 weeks' }, { id: '30', t: 'Monthly' }], String(F.gap || '3'));
+    }
+    if (!out || byPrice) h += '<div class="q">Split</div>' + seg('fset', 'split', [{ id: 'shares', t: 'Equal shares' }, { id: 'dollars', t: 'Equal dollars' }], F.split || 'shares');
+    if (!out) h += usesDollars(F) ? fnum('totAmt', 'Total amount to invest ($)', '') : fnum('totSh', 'Total shares to buy', '');
+  }
+  return h + '<div id="trp">' + trancheHtml() + '</div></div>';
 }
 const THESIS_LBL = {
   buy: ['Thesis in one line', 'Why this, why now, at this price'], add: ['Why add now?', 'What changed since the last decision'],
@@ -864,12 +912,7 @@ function vDecide() {
         '<div class="when">Use your floor or bear case. A stop-loss does not protect you from a gap down.</div>' : '') + '</div>';
   }
 
-  if (side === 'out') {
-    h += '<div class="card"><div class="ch">How I will do it</div>' +
-      seg('fset', 'tr', [{ id: '1', t: 'All now' }, { id: '2', t: '2 steps' }, { id: '3', t: '3 steps' }, { id: '4', t: '4 steps' }], String(F.tr || '1')) +
-      (Number(F.tr) > 1 ? '<div class="q">Spacing</div>' + seg('fset', 'gap', [{ id: '1', t: 'Daily' }, { id: '3', t: 'Every 3 days' }, { id: '7', t: 'Weekly' }], String(F.gap || '3')) : '') +
-      '<div id="trp">' + trancheHtml() + '</div></div>';
-  }
+  if (PLANNED.includes(ty)) h += planCard(F);
 
   h += '<div class="card"><div class="ch">State of mind</div><div class="q">Right now I feel</div>' + fchips('emo', EMO, F.emo) +
     (T(ty).trade ? '<div class="q">' + (side === 'out' ? 'Was this sale in my plan before today (a rule or my framework)?' : 'Was this trade in my plan before today?') + '</div>' + seg('fset', 'planned', [{ id: 'yes', t: 'Yes, planned' }, { id: 'no', t: 'No, new' }], F.planned) : '') +
@@ -926,6 +969,15 @@ function warnings(F0) {
     w.push({ lvl: ev > 0 ? 'good' : 'bad', t: 'Expected value: ' + pct(ev) + ' (' + p + '% × ' + fmt(up) + '% up, ' + (100 - p) + '% × ' + fmt(dn) + '% down).' });
   }
   if (out && !(F.back || '').trim()) w.push({ lvl: 'warn', t: 'Write the way back in, so the choice is not all or nothing.' });
+  if (PLANNED.includes(ty) && Number(F.tr) > 1) {
+    const n = Number(F.tr), lad = (F.lad || []).slice(0, n).map(num);
+    if (F.pmode === 'price' && (lad.length < n || lad.some((x) => !isNum(x)))) w.push({ lvl: 'warn', t: 'Set a price for every step.' });
+    if (!out && !isNum(num(usesDollars(F) ? F.totAmt : F.totSh))) w.push({ lvl: 'warn', t: 'Add the total to buy, so each step has a size.' });
+  }
+  if (PLANNED.includes(ty) && tk) {
+    const plan = Object.values(D.decisions).find((x) => x.id !== F.editId && x.tk === tk && x.status === 'done' && (x.tranches || []).some((t) => !t.st));
+    if (plan) w.push({ lvl: 'bad', t: 'You have an open ' + (SIDE[plan.type] === 'out' ? 'sale' : 'buy') + ' plan for ' + tk + ' from ' + nice(plan.date) + '. A trade outside it is off-plan: finish, skip or edit that plan instead.' });
+  }
   const miss = preFor(ty).filter((c) => !(F.pre || {})[c.id]).length;
   if (miss) w.push({ lvl: 'warn', t: plural(miss, 'check') + ' in "' + (out ? 'Before you sell' : ty === 'hold' ? 'Before you hold' : 'Pre-flight') + '" not ticked.' });
   if (['buy', 'add', 'hold'].includes(ty) && !(F.kill || '').trim()) w.push({ lvl: 'warn', t: 'No kill criteria. What would prove this wrong?' });
@@ -952,7 +1004,7 @@ function submit() {
   const d = Object.assign({ id: uid(), at: now.toISOString() }, fieldsFrom(F, X, w),
     { status: cool ? 'cooling' : 'done', coolUntil: cool ? new Date(now.getTime() + D.settings.coolHours * 36e5).toISOString() : null, cps: {} });
   if (!cool) d.doneAt = d.date === todayStr() ? now.toISOString() : null;
-  if (out) { const tr = trancheList(F, cool ? ds(new Date(d.coolUntil)) : d.date); if (tr.length) d.tranches = tr; }
+  if (PLANNED.includes(F.type)) { const tr = trancheList(F, cool ? ds(new Date(d.coolUntil)) : d.date); if (tr.length) d.tranches = tr; }
   D.decisions[d.id] = d; save();
   draft = newDraft(); localStorage.removeItem(DRAFT);
   view = 'today'; render(); window.scrollTo(0, 0);
@@ -966,7 +1018,9 @@ function fieldsFrom(F, X, w) {
     shNow: X.shNowN, shAfter: isNum(X.shAfterN) ? X.shAfterN : null, mine: num(F.mine), bull: num(F.bull), bad: num(F.bad), back: (F.back || '').trim(),
     thesis: (F.thesis || '').trim(), variant: (F.variant || '').trim(), kill: (F.kill || '').trim(), premortem: (F.premortem || '').trim(),
     why: (F.why || []).slice(), planned: F.planned || '', fw: F.fw || '', fwWhy: (F.fwWhy || '').trim(), clean: F.clean || '', emo: (F.emo || []).slice(), pre: Object.assign({}, F.pre || {}),
-    flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t) };
+    flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t),
+    plan: Number(F.tr) > 1 ? { mode: F.pmode || 'date', split: usesDollars(F) ? 'dollars' : 'shares', gap: Number(F.gap) || 3 } : null,
+    totSh: num(F.totSh), totAmt: num(F.totAmt) };
 }
 
 /* ---------- Guarded edit: everything for 24 hours after logging, then facts only plus dated amendments ---------- */
@@ -979,7 +1033,8 @@ function toDraft(d) {
   return newDraft({ type: d.type, date: d.date, tk: d.tk, px: v0(d.px), size: v0(d.size), conv: d.conv || 5, p: d.p == null ? 60 : d.p, up: v0(d.up), dn: v0(d.dn), kind: d.kind || 'spec',
     thesis: d.thesis || '', variant: d.variant || '', kill: d.kill || '', premortem: d.premortem || '', why: (d.why || []).slice(), planned: d.planned || '', fw: d.fw || '', fwWhy: d.fwWhy || '',
     clean: d.clean || '', emo: (d.emo || []).slice(), pre: Object.assign({}, d.pre || {}), shNow: v0(d.shNow), shAfter: v0(d.shAfter), mine: v0(d.mine), bull: v0(d.bull), bad: v0(d.bad), back: d.back || '',
-    tr: String(tr.length || 1), gap: String(tr.length > 1 ? diffDays(tr[0].date, tr[1].date) : 3), editId: d.id });
+    tr: String(tr.length || 1), gap: String((d.plan && d.plan.gap) || (tr.length > 1 && tr[0].date && tr[1].date ? diffDays(tr[0].date, tr[1].date) : 3)),
+    pmode: (d.plan && d.plan.mode) || 'date', split: (d.plan && d.plan.split) || 'shares', lad: tr.map((t) => (t.px == null ? '' : t.px)), totSh: v0(d.totSh), totAmt: v0(d.totAmt), editId: d.id });
 }
 function startEdit(id) {
   const d = D.decisions[id]; if (!d) return;
@@ -999,7 +1054,7 @@ function applyFullEdit(F) {
   const X = derive(F), started = (d.tranches || []).some((t) => t.st);
   Object.assign(d, fieldsFrom(F, X, warnings(F)));
   if (!started) {
-    const tr = SIDE[F.type] === 'out' ? trancheList(F, d.status === 'cooling' && d.coolUntil ? ds(new Date(d.coolUntil)) : d.date) : [];
+    const tr = trancheList(F, d.status === 'cooling' && d.coolUntil ? ds(new Date(d.coolUntil)) : d.date);
     if (tr.length) d.tranches = tr; else delete d.tranches;
   }
   (d.edits = d.edits || []).push({ at: now.toISOString(), kind: 'full' });
@@ -1023,7 +1078,7 @@ function reasoningHtml(d) {
 function vEditFacts() {
   const d = D.decisions[editId];
   if (!d) { view = 'review'; return vReview(); }
-  const side = SIDE[d.type], port = portVal(), open = (d.tranches || []).filter((t) => !t.st);
+  const side = SIDE[d.type], port = portVal(), open = (d.tranches || []).filter((t) => !t.st && t.date);
   if (!efKind) efKind = d.kind || 'spec';
   let h = '<button class="link small" data-act="tab" data-v="review">\u2190 Review</button><div class="kicker" style="margin-top:10px">Correct the facts</div><div class="h2">' + T(d.type).t + ' ' + esc(d.tk) + '</div>' +
     '<div class="note info small">Logged ' + fmtTime(d.at) + '. After 24 hours the reasoning is locked, so your record shows what you thought at the time. Correct the numbers here, or add a dated amendment below.</div>';
@@ -1034,7 +1089,7 @@ function vEditFacts() {
     (side === 'in' ? '<div class="grid2">' + efInput('up', 'Upside if right (%)', d.up) + efInput('dn', 'Bad-case fall (%)', d.dn) + '</div>' : '') +
     (side === 'out' || side === 'hold' ? '<div class="grid2">' + efInput('mine', 'My value per share', d.mine) + efInput('bull', 'Bull-case value', d.bull) + '</div>' + efInput('bad', 'Bad-case price', d.bad) : '') +
     (HELD.includes(d.type) || d.type === 'sell' ? '<div class="q">Sized as a</div>' + seg('efkind', d.id, KINDS, efKind) : '') +
-    (open.length ? '<div class="q">Sale-plan dates (steps not yet done)</div>' + d.tranches.map((t, i) => t.st ? '' : '<label class="field"><span>Step ' + t.n + ' of ' + t.of + (t.sh ? ', ' + t.sh.toLocaleString('en-US') + ' shares' : '') + '</span><input type="date" id="ef-tr' + i + '" value="' + t.date + '"></label>').join('') : '') + '</div>';
+    (open.length ? '<div class="q">Step dates (steps not yet done)</div>' + d.tranches.map((t, i) => (t.st || !t.date) ? '' : '<label class="field"><span>Step ' + t.n + ' of ' + t.of + (t.sh ? ', ' + t.sh.toLocaleString('en-US') + ' shares' : '') + '</span><input type="date" id="ef-tr' + i + '" value="' + t.date + '"></label>').join('') : '') + '</div>';
   h += '<div class="card"><div class="ch">Your reasoning<span class="when">locked</span></div>' + reasoningHtml(d) + '</div>';
   h += '<div class="card"><div class="ch">Add an amendment</div><div class="small mute">A dated note shown under the original. Use it for what you learned or got wrong.</div><textarea id="ef-amend" placeholder="e.g. I misread the cash runway; the real figure is ..."></textarea></div>';
   return h + '<div class="actions"><button class="btn big" data-act="efsave" data-k="' + d.id + '">Save</button><button class="btn ghost" data-act="tab" data-v="review">Cancel</button></div>';
@@ -1089,6 +1144,18 @@ function riskChart(list) {
   });
   return g + '</svg><div class="legend"><span>Bar = share of the portfolio lost if the bad case happens</span><span><i style="border-radius:0;width:2px;height:12px;background:var(--warn)"></i>Loss budget (speculative ' + fmt(D.settings.lossSpec) + '%, core ' + fmt(D.settings.lossCore) + '%)</span></div>';
 }
+function planLine(d) {
+  const tr = d.tranches || []; if (!tr.length) return '';
+  const dn = tr.filter((t) => t.st === 'done').length, sk = tr.filter((t) => t.st === 'skip').length, af = avgFill(d), nd = tr.find((t) => !t.st && t.date);
+  let h = '<div class="when">' + (SIDE[d.type] === 'out' ? 'Sale plan' : 'Buy plan') + ': ' + dn + ' of ' + tr.length + ' steps done' + (sk ? ', ' + sk + ' skipped' : '') +
+    (isNum(af) ? ', average fill $' + fmt(af, 2) : '') + (nd ? ', next ' + nice(nd.date) : '') + '</div>';
+  tr.forEach((t, i) => {
+    if (t.st || t.date) return;
+    h += '<div class="rrow"><div class="lbl small">Step ' + t.n + (isNum(t.px) ? ' at <b>$' + fmt(t.px, 2) + '</b>' : '') + (stepSize(t) ? ', ' + stepSize(t) : '') + '</div>' +
+      '<button class="btn sm" data-act="trdo" data-k="' + d.id + '" data-v="' + i + '">Done</button><button class="btn sm ghost" data-act="trskip" data-k="' + d.id + '" data-v="' + i + '">Skip</button></div>';
+  });
+  return h;
+}
 function holdCard(d) {
   const s = todayStr(), age = diffDays(d.date, s), sz = num(d.size), fit = sizeFit(d);
   const flags = [];
@@ -1103,8 +1170,7 @@ function holdCard(d) {
     (isNum(sz) ? fmt(sz) + '%' : '') + (isNum(num(d.conv)) ? ' · ' + d.conv + '/10' : '') + (d.kind ? ' · ' + kindT(d.kind) : '') + '</span></div>' +
     (flags.length ? '<div class="flags">' + flags.join('') + '</div>' : '') +
     '<div class="small">' + esc(d.thesis) + '</div>' + (d.kill ? '<div class="kill"><b>Kill if</b> ' + esc(d.kill) + '</div>' : '') +
-    (d.tranches ? (function () { const dn = d.tranches.filter((t) => t.st === 'done').length, sk = d.tranches.filter((t) => t.st === 'skip').length, nx = d.tranches.find((t) => !t.st);
-      return '<div class="when">Sale plan: ' + dn + ' of ' + d.tranches.length + ' steps done' + (sk ? ', ' + sk + ' skipped' : '') + (nx ? ', next ' + nice(nx.date) : '') + '</div>'; })() : '') +
+    planLine(d) +
     (d.back ? '<div class="when">Way back in: ' + esc(d.back) + '</div>' : '') +
     '<div class="when">Last decided ' + nice(d.date) + ' (' + plural(age, 'day') + ' ago)</div>' +
     '<div class="actions"><button class="btn sm ghost" data-act="recheck" data-k="' + d.id + '">Re-check thesis</button><button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">' + (sizeFit(d) === 'over' || FAM[d.fw] === 'down' ? 'Log a trim' : 'Log a trade') + '</button><button class="btn sm ghost" data-act="edit" data-k="' + d.id + '">' + (canFullEdit(d) ? 'Edit' : 'Correct facts') + '</button></div></div>';
@@ -1181,7 +1247,8 @@ function detailHtml(d) {
   add('Shares', isNum(d.shNow) ? d.shNow.toLocaleString('en-US') + (isNum(d.shAfter) && d.shAfter !== d.shNow ? ' \u2192 ' + d.shAfter.toLocaleString('en-US') : '') : '');
   add('Value / bull / bad', isNum(d.mine) || isNum(d.bull) || isNum(d.bad) ? '$' + fmt(d.mine, 2) + ' / $' + fmt(d.bull, 2) + ' / $' + fmt(d.bad, 2) : '');
   add('Thesis', d.thesis); add('Way back in', d.back);
-  add('Sale plan', (d.tranches || []).map((t) => t.n + ': ' + (t.sh ? t.sh + ' sh ' : '') + nice(t.date) + (t.st ? ' ' + t.st + (t.why ? ' (' + t.why + ')' : '') : '')).join(' \u00b7 ')); add('Variant view', d.variant); add('Kill if', d.kill); add('Pre-mortem', d.premortem);
+  add(SIDE[d.type] === 'out' ? 'Sale plan' : 'Buy plan', (d.tranches || []).map((t) => t.n + ': ' + (stepSize(t) ? stepSize(t) + ' ' : '') + (t.date ? nice(t.date) : 'at $' + fmt(t.px, 2)) + (t.st ? ' ' + t.st : '') + (isNum(t.fill) ? ' @ $' + fmt(t.fill, 2) : '') + (t.why ? ' (' + t.why + ')' : '')).join(' \u00b7 '));
+  if (isNum(avgFill(d))) add('Average fill', '$' + fmt(avgFill(d), 2) + ' (reviews score from this)'); add('Variant view', d.variant); add('Kill if', d.kill); add('Pre-mortem', d.premortem);
   add('Why sell', (d.why || []).map((w) => (SELLWHY.find((x) => x.id === w) || {}).t).join(', '));
   add('Planned', d.planned === 'yes' ? 'Yes' : d.planned === 'no' ? 'No' : ''); add('Framework', d.fw ? d.fw + (d.fwWhy ? ': ' + d.fwWhy : '') : '');
   add('Felt', emoNames(d.emo)); add('Flags', (d.flags || []).join(' '));
@@ -1228,9 +1295,9 @@ function vScore() {
   const S = scored(), n = S.length;
   let h = '<h3 class="sec">Scorecard</h3>';
   const trs = []; Object.values(D.decisions).forEach((d) => { if (d.status === 'done') (d.tranches || []).forEach((t) => trs.push(t)); });
-  const tDue = trs.filter((t) => t.date <= todayStr());
+  const tDue = trs.filter((t) => t.date && t.date <= todayStr());
   h += '<div class="card"><div class="ch">Trades per month</div>' + tradeChart() +
-    (tDue.length ? '<div class="small" style="margin-top:8px">Sale plans: <b>' + tDue.filter((t) => t.st === 'done').length + ' of ' + tDue.length + '</b> due steps done, ' + tDue.filter((t) => t.st === 'skip').length + ' skipped, ' + tDue.filter((t) => !t.st).length + ' still open.</div>' : '') + '</div>';
+    (tDue.length ? '<div class="small" style="margin-top:8px">Step plans (dated steps): <b>' + tDue.filter((t) => t.st === 'done').length + ' of ' + tDue.length + '</b> due steps done, ' + tDue.filter((t) => t.st === 'skip').length + ' skipped, ' + tDue.filter((t) => !t.st).length + ' still open.</div>' : '') + '</div>';
   if (!n) return h + '<div class="card"><div class="ch">Patterns</div><div class="small mute">Fills in as you review decisions. Read anything under about 20 reviewed decisions as a hint, not a finding.</div></div>';
   const small = n < 20 ? '<div class="note warn small">Only ' + plural(n, 'reviewed decision') + '. Treat every pattern below as a hint until about 20.</div>' : '';
   h += small;
@@ -1580,7 +1647,12 @@ document.addEventListener('click', (e) => {
       const why = prompt('Skipping needs a new fact, not a price move. What changed?');
       if (!why || !why.trim()) { toast('No new fact, no skip'); return; }
       t.st = 'skip'; t.why = why.trim();
-    } else t.st = 'done';
+    } else {
+      const f = prompt('Fill price for step ' + t.n + ' (optional; leave blank to skip)');
+      if (f === null) return;
+      if (isNum(num(f))) t.fill = num(f);
+      t.st = 'done';
+    }
     t.at = new Date().toISOString(); save(); render(); toast(a === 'trdo' ? 'Step ' + t.n + ' of ' + t.of + ' done' : 'Skipped, with the reason logged'); return;
   }
   if (a === 'cdo' || a === 'cdrop') {
@@ -1659,6 +1731,9 @@ document.addEventListener('input', (e) => {
     draft[ds_.f] = el.type === 'range' ? Number(el.value) : el.value;
     if (el.type === 'range') { const lv = document.getElementById('lv-' + ds_.f); if (lv) lv.textContent = el.value + ds_.suf; }
     keepDraft(); if (ds_.f !== 'fw') refreshDecide(); return;
+  }
+  if (ds_.lad !== undefined) {
+    draft.lad = (draft.lad || []).slice(); draft.lad[Number(ds_.lad)] = el.value; keepDraft(); refreshDecide(); return;
   }
   if (ds_.tool) {
     const t = TOOLS[ds_.tool] = TOOLS[ds_.tool] || {}; t[ds_.k] = el.value;
