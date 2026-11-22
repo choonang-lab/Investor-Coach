@@ -16,6 +16,11 @@ no live market data (the user types prices in).
   fact), and a "Before you sell/hold" checklist (`PRE_SELL`, `PRE_HOLD`). A trim or sale that follows a rule or the
   framework (`riskReducing`) is never cooled off; fear-only sales still are. `settings.port` (optional portfolio
   value) turns shares into % of portfolio via `derive()`.
+- **Guarded edit (v7):** Edit / Correct facts on each decision (Review → All decisions, and Book). Within
+  `EDIT_HOURS` (24 h) of `at`, the Decide form reopens with `draft.editId` and saving overwrites the decision in place
+  (`applyFullEdit`, sale plan rebuilt only if no step is done yet). After that only facts can change (`vEditFacts` /
+  `saveFacts`: ticker, date, price, shares, size, up/dn, value/bull/bad, kind, open step dates); the reasoning is
+  locked and the user adds dated amendments instead. **Keep the reasoning lock: it is what makes the scorecard honest.**
 - **Today**: daily check-in (state, urge, rotating prompt), rule of the day (Leitner boxes, weighted toward
   the categories of mistakes tagged in reviews), nudges (reviews due, framework gaps, size/conviction
   mismatch, stale theses, idea cap).
@@ -49,7 +54,8 @@ no live market data (the user types prices in).
    via localStorage, check `document.documentElement.scrollWidth === 375`, then clear it.
 4. **Data shape is append-friendly:** `decisions[id] = {id, at, date, type, tk, px, size, conv, p, up, dn, kind, shNow, shAfter, mine, bull, bad, back,
    tranches[{n, of, date, sh, st(''|done|skip), why, at}], thesis, variant, kill, premortem, why[], planned, fw, fwWhy, clean, emo[], pre{}, flags[], status
-   (cooling|done|dropped), coolUntil, doneAt, droppedAt, override, cps{30|90|365: {at, px, th, pr, tags[], note}}}`;
+   (cooling|done|dropped), coolUntil, doneAt, droppedAt, override, cps{30|90|365: {at, px, th, pr, tags[], note}}, edits[{at, kind(full|facts), changed[]}],
+   amend[{at, t}]}`;
    `days[YYYY-MM-DD] = {state, urge, note, card, cardDone}`; `weeks[monday] = {emo, rule, change, at}`;
    `cards[id] = {box, due, off}`; `myCards[id] = {id, cat, t, why, pre, deleted}`; `deleted[id] = iso`;
    `learn = {start, done{lessonId: date}, drills{lessonId: text}, checks{lessonId: optionIndex}}`.

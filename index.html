@@ -153,7 +153,7 @@ ol.steps li{margin:5px 0}
 <nav id="tabbar"></nav>
 <div id="toast"></div>
 <script>
-const BUILD = 'v6';
+const BUILD = 'v7';
 const KEY = 'ic_data';
 const GHKEY = 'ic_gh';
 const DIRTY = 'ic_dirty';
@@ -624,7 +624,7 @@ function render() {
   const due = dueList().length;
   $('#tabbar').innerHTML = [['today', 'Today'], ['decide', 'Decide'], ['book', 'Book'], ['learn', 'Learn'], ['review', 'Review'], ['more', 'More']].map(([id, l]) =>
     '<button class="' + (view === id ? 'on' : '') + '" data-act="tab" data-v="' + id + '">' + ICONS[id] + l + (id === 'review' && due ? '<span class="badge">' + due + '</span>' : '') + '</button>').join('');
-  $('#main').innerHTML = ({ today: vToday, decide: vDecide, book: vBook, learn: vLearn, review: vReview, more: vMore })[view]();
+  $('#main').innerHTML = ({ today: vToday, decide: vDecide, book: vBook, learn: vLearn, review: vReview, more: vMore, editfacts: vEditFacts })[view]();
 }
 function seg(act, k, opts, val, extra) {
   return '<div class="seg">' + opts.map((o) => '<button class="' + (val === o.id ? 'on' : '') + '" data-act="' + act + '" data-k="' + esc(k) + '" data-v="' + o.id + '"' + (extra || '') + '>' + esc(o.t) + '</button>').join('') + '</div>';
@@ -820,6 +820,8 @@ function vDecide() {
         '<div class="check" data-act="fset" data-k="type" data-v="' + id + '"><div class="lbl"><b>' + T(id).t + '</b><div class="when">' + TYPE_D[id] + '</div></div><span class="mute">›</span></div>').join('') + '</div>').join('');
   }
   let h = '<div class="kicker">' + (ty === 'watch' ? 'Before you watch' : KICK[side]) + '</div><div class="h2">' + TITLE[ty] + '</div><div class="small mute" style="margin-bottom:12px">Write it before you do it. Memory rewrites the reasons afterwards.</div>';
+  const ed = F.editId && D.decisions[F.editId];
+  if (ed) h += '<div class="note info small">Editing the decision logged ' + fmtTime(ed.at) + '. Everything can be changed until ' + fmtTime(editCloses(ed)) + '; after that only the facts.</div>';
 
   h += '<div class="card"><div class="typegrid">' + TYPE_ORDER.map((id) => '<button class="' + (ty === id ? 'on' : '') + '" data-act="fset" data-k="type" data-v="' + id + '">' + T(id).t + '</button>').join('') + '</div>' +
     '<div class="grid2"><label class="field"><span>Ticker</span><input type="text" autocapitalize="characters" autocorrect="off" spellcheck="false" data-f="tk" value="' + esc(F.tk) + '"></label>' +
@@ -932,10 +934,10 @@ function warnings(F0) {
 function willCool(w) { return T(draft.type).trade && draft.date >= todayStr() && w.some((x) => x.cool); }
 function warnHtml() {
   if (!SIDE[draft.type]) return '';
-  const w = warnings(draft), cool = willCool(w);
+  const w = warnings(draft), cool = !draft.editId && willCool(w);
   return (w.length ? '<div class="card"><div class="ch">Checks</div>' + w.map((x) => '<div class="tw"><div class="dot ' + x.lvl + '"></div><div class="small">' + esc(x.t) + '</div></div>').join('') +
     (cool ? '<div class="note warn" style="margin:10px 0 0">This goes into a ' + D.settings.coolHours + '-hour cool-off. If it is still right then, do it.</div>' : '') + '</div>' : '') +
-    '<div class="actions"><button class="btn big" data-act="submit">' + (cool ? LOGL[draft.type] + ' and cool off' : LOGL[draft.type]) + '</button><button class="btn ghost" data-act="fclear">Clear</button></div>';
+    '<div class="actions"><button class="btn big" data-act="submit">' + (draft.editId ? 'Save changes' : cool ? LOGL[draft.type] + ' and cool off' : LOGL[draft.type]) + '</button><button class="btn ghost" data-act="fclear">' + (draft.editId ? 'Cancel edit' : 'Clear') + '</button></div>';
 }
 function submit() {
   const F = draft, tk = (F.tk || '').trim().toUpperCase();
@@ -945,21 +947,126 @@ function submit() {
   if (F.date > todayStr()) { toast('Date is in the future'); return; }
   const X = derive(F);
   if (F.type === 'trim' && isNum(X.shNowN) && isNum(X.shAfterN) && X.shAfterN >= X.shNowN) { toast('Shares after should be fewer than shares now'); return; }
+  if (F.editId && D.decisions[F.editId]) { applyFullEdit(F); return; }
   const w = warnings(F), cool = willCool(w), now = new Date(), out = SIDE[F.type] === 'out';
-  const d = { id: uid(), at: now.toISOString(), date: F.date || todayStr(), type: F.type, tk,
-    px: num(F.px), size: F.type === 'sell' ? 0 : num(X.size), conv: HELD.includes(F.type) ? num(F.conv) : null,
-    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(X.dn), kind: HELD.includes(F.type) || F.type === 'sell' ? (F.kind || 'spec') : '',
-    shNow: X.shNowN, shAfter: isNum(X.shAfterN) ? X.shAfterN : null, mine: num(F.mine), bull: num(F.bull), bad: num(F.bad), back: (F.back || '').trim(),
-    thesis: F.thesis.trim(), variant: (F.variant || '').trim(), kill: (F.kill || '').trim(), premortem: (F.premortem || '').trim(),
-    why: F.why || [], planned: F.planned || '', fw: F.fw || '', fwWhy: (F.fwWhy || '').trim(), clean: F.clean || '', emo: F.emo || [], pre: F.pre || {},
-    flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t),
-    status: cool ? 'cooling' : 'done', coolUntil: cool ? new Date(now.getTime() + D.settings.coolHours * 36e5).toISOString() : null, cps: {} };
+  const d = Object.assign({ id: uid(), at: now.toISOString() }, fieldsFrom(F, X, w),
+    { status: cool ? 'cooling' : 'done', coolUntil: cool ? new Date(now.getTime() + D.settings.coolHours * 36e5).toISOString() : null, cps: {} });
   if (!cool) d.doneAt = d.date === todayStr() ? now.toISOString() : null;
   if (out) { const tr = trancheList(F, cool ? ds(new Date(d.coolUntil)) : d.date); if (tr.length) d.tranches = tr; }
   D.decisions[d.id] = d; save();
   draft = newDraft(); localStorage.removeItem(DRAFT);
   view = 'today'; render(); window.scrollTo(0, 0);
   toast(cool ? 'Logged. Cool-off until ' + fmtTime(d.coolUntil) : d.tranches ? 'Logged. Step 1 of ' + d.tranches.length + ' is on Today' : 'Decision logged');
+}
+
+function fieldsFrom(F, X, w) {
+  return { date: F.date || todayStr(), type: F.type, tk: (F.tk || '').trim().toUpperCase(),
+    px: num(F.px), size: F.type === 'sell' ? 0 : num(X.size), conv: HELD.includes(F.type) ? num(F.conv) : null,
+    p: F.type === 'watch' ? null : num(F.p), up: num(F.up), dn: num(X.dn), kind: HELD.includes(F.type) || F.type === 'sell' ? (F.kind || 'spec') : '',
+    shNow: X.shNowN, shAfter: isNum(X.shAfterN) ? X.shAfterN : null, mine: num(F.mine), bull: num(F.bull), bad: num(F.bad), back: (F.back || '').trim(),
+    thesis: (F.thesis || '').trim(), variant: (F.variant || '').trim(), kill: (F.kill || '').trim(), premortem: (F.premortem || '').trim(),
+    why: (F.why || []).slice(), planned: F.planned || '', fw: F.fw || '', fwWhy: (F.fwWhy || '').trim(), clean: F.clean || '', emo: (F.emo || []).slice(), pre: Object.assign({}, F.pre || {}),
+    flags: w.filter((x) => x.lvl === 'bad' || x.lvl === 'warn').map((x) => x.t) };
+}
+
+/* ---------- Guarded edit: everything for 24 hours after logging, then facts only plus dated amendments ---------- */
+const EDIT_HOURS = 24;
+let editId = '', efKind = '';
+function canFullEdit(d) { return Date.now() - Date.parse(d.at) < EDIT_HOURS * 36e5; }
+function editCloses(d) { return new Date(Date.parse(d.at) + EDIT_HOURS * 36e5).toISOString(); }
+function toDraft(d) {
+  const v0 = (x) => (x == null ? '' : x), tr = d.tranches || [];
+  return newDraft({ type: d.type, date: d.date, tk: d.tk, px: v0(d.px), size: v0(d.size), conv: d.conv || 5, p: d.p == null ? 60 : d.p, up: v0(d.up), dn: v0(d.dn), kind: d.kind || 'spec',
+    thesis: d.thesis || '', variant: d.variant || '', kill: d.kill || '', premortem: d.premortem || '', why: (d.why || []).slice(), planned: d.planned || '', fw: d.fw || '', fwWhy: d.fwWhy || '',
+    clean: d.clean || '', emo: (d.emo || []).slice(), pre: Object.assign({}, d.pre || {}), shNow: v0(d.shNow), shAfter: v0(d.shAfter), mine: v0(d.mine), bull: v0(d.bull), bad: v0(d.bad), back: d.back || '',
+    tr: String(tr.length || 1), gap: String(tr.length > 1 ? diffDays(tr[0].date, tr[1].date) : 3), editId: d.id });
+}
+function startEdit(id) {
+  const d = D.decisions[id]; if (!d) return;
+  if (canFullEdit(d)) { draft = toDraft(d); keepDraft(); view = 'decide'; }
+  else { editId = id; efKind = ''; view = 'editfacts'; }
+  render(); window.scrollTo(0, 0);
+}
+function stepShares(d) {
+  const after = d.type === 'sell' ? 0 : d.shAfter, n = (d.tranches || []).length;
+  if (!n || !isNum(d.shNow) || !isNum(after) || d.shNow <= after) return;
+  const qty = d.shNow - after, each = Math.floor(qty / n);
+  d.tranches.forEach((t, i) => { t.sh = i < n - 1 ? each : qty - each * (n - 1); });
+}
+function applyFullEdit(F) {
+  const d = D.decisions[F.editId], now = new Date();
+  if (!canFullEdit(d)) { draft = newDraft(); localStorage.removeItem(DRAFT); editId = d.id; efKind = ''; view = 'editfacts'; render(); toast('The 24-hour window has closed. Only facts can be changed now'); return; }
+  const X = derive(F), started = (d.tranches || []).some((t) => t.st);
+  Object.assign(d, fieldsFrom(F, X, warnings(F)));
+  if (!started) {
+    const tr = SIDE[F.type] === 'out' ? trancheList(F, d.status === 'cooling' && d.coolUntil ? ds(new Date(d.coolUntil)) : d.date) : [];
+    if (tr.length) d.tranches = tr; else delete d.tranches;
+  }
+  (d.edits = d.edits || []).push({ at: now.toISOString(), kind: 'full' });
+  save(); draft = newDraft(); localStorage.removeItem(DRAFT);
+  view = 'review'; render(); window.scrollTo(0, 0); toast('Decision updated');
+}
+function efInput(k, label, v) {
+  const type = k === 'tk' ? 'text' : k === 'date' ? 'date' : 'number';
+  const extra = k === 'tk' ? ' autocapitalize="characters" autocorrect="off" spellcheck="false"' : k === 'date' ? ' max="' + todayStr() + '"' : ' inputmode="decimal" step="any"';
+  return '<label class="field"><span>' + label + '</span><input type="' + type + '"' + extra + ' id="ef-' + k + '" value="' + esc(v == null ? '' : v) + '"></label>';
+}
+function reasoningHtml(d) {
+  const kv = [], add = (k, v) => { if (v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) kv.push('<dt>' + k + '</dt><dd>' + esc(v) + '</dd>'); };
+  add('Reason', d.thesis); add('Why sell', (d.why || []).map((w) => (SELLWHY.find((x) => x.id === w) || {}).t).join(', '));
+  add('Clean slate', d.clean === 'yes' ? 'Would buy at this size' : d.clean === 'no' ? 'Would not buy at this size' : '');
+  add('How likely', isNum(num(d.p)) ? d.p + '%' : ''); add('Conviction', isNum(num(d.conv)) ? d.conv + '/10' : '');
+  add('Variant view', d.variant); add('Kill if', d.kill); add('Way back in', d.back); add('Pre-mortem', d.premortem);
+  add('Planned', d.planned === 'yes' ? 'Yes' : d.planned === 'no' ? 'No' : ''); add('Framework', d.fw ? d.fw + (d.fwWhy ? ': ' + d.fwWhy : '') : ''); add('Felt', emoNames(d.emo));
+  return kv.length ? '<dl class="kv">' + kv.join('') + '</dl>' : '<div class="small mute">Nothing recorded.</div>';
+}
+function vEditFacts() {
+  const d = D.decisions[editId];
+  if (!d) { view = 'review'; return vReview(); }
+  const side = SIDE[d.type], port = portVal(), open = (d.tranches || []).filter((t) => !t.st);
+  if (!efKind) efKind = d.kind || 'spec';
+  let h = '<button class="link small" data-act="tab" data-v="review">\u2190 Review</button><div class="kicker" style="margin-top:10px">Correct the facts</div><div class="h2">' + T(d.type).t + ' ' + esc(d.tk) + '</div>' +
+    '<div class="note info small">Logged ' + fmtTime(d.at) + '. After 24 hours the reasoning is locked, so your record shows what you thought at the time. Correct the numbers here, or add a dated amendment below.</div>';
+  h += '<div class="card"><div class="ch">Facts</div><div class="grid2">' + efInput('tk', 'Ticker', d.tk) + efInput('date', 'Date', d.date) + '</div><div class="grid2">' + efInput('px', 'Price', d.px) +
+    (side === 'out' || side === 'hold' ? efInput('shNow', 'Shares held then', d.shNow) : '') + '</div>' +
+    (d.type === 'trim' ? efInput('shAfter', 'Shares after the trim', d.shAfter) : '') +
+    (HELD.includes(d.type) && (side === 'in' || !port) ? efInput('size', side === 'in' ? 'Size after (% of portfolio)' : 'Size (% of portfolio)', d.size) : '') +
+    (side === 'in' ? '<div class="grid2">' + efInput('up', 'Upside if right (%)', d.up) + efInput('dn', 'Bad-case fall (%)', d.dn) + '</div>' : '') +
+    (side === 'out' || side === 'hold' ? '<div class="grid2">' + efInput('mine', 'My value per share', d.mine) + efInput('bull', 'Bull-case value', d.bull) + '</div>' + efInput('bad', 'Bad-case price', d.bad) : '') +
+    (HELD.includes(d.type) || d.type === 'sell' ? '<div class="q">Sized as a</div>' + seg('efkind', d.id, KINDS, efKind) : '') +
+    (open.length ? '<div class="q">Sale-plan dates (steps not yet done)</div>' + d.tranches.map((t, i) => t.st ? '' : '<label class="field"><span>Step ' + t.n + ' of ' + t.of + (t.sh ? ', ' + t.sh.toLocaleString('en-US') + ' shares' : '') + '</span><input type="date" id="ef-tr' + i + '" value="' + t.date + '"></label>').join('') : '') + '</div>';
+  h += '<div class="card"><div class="ch">Your reasoning<span class="when">locked</span></div>' + reasoningHtml(d) + '</div>';
+  h += '<div class="card"><div class="ch">Add an amendment</div><div class="small mute">A dated note shown under the original. Use it for what you learned or got wrong.</div><textarea id="ef-amend" placeholder="e.g. I misread the cash runway; the real figure is ..."></textarea></div>';
+  return h + '<div class="actions"><button class="btn big" data-act="efsave" data-k="' + d.id + '">Save</button><button class="btn ghost" data-act="tab" data-v="review">Cancel</button></div>';
+}
+function saveFacts(id) {
+  const d = D.decisions[id]; if (!d) return;
+  const g = (k) => { const el = document.getElementById('ef-' + k); return el ? el.value.trim() : undefined; };
+  const old = JSON.parse(JSON.stringify(d)), changed = [];
+  const set = (k, v) => { if (v === undefined) return; const a = d[k] == null ? '' : String(d[k]), b = v == null ? '' : String(v); if (a !== b) { d[k] = v; changed.push(k); } };
+  const tk = g('tk'); if (tk !== undefined && !tk) { toast('The ticker cannot be empty'); return; }
+  const dt = g('date'); if (dt !== undefined && (!dt || dt > todayStr())) { toast('Check the date'); return; }
+  if (tk !== undefined) set('tk', tk.toUpperCase());
+  if (dt !== undefined) set('date', dt);
+  ['px', 'shNow', 'shAfter', 'size', 'up', 'dn', 'mine', 'bull', 'bad'].forEach((k) => { const v = g(k); if (v !== undefined) set(k, v === '' ? null : num(v)); });
+  if (d.type === 'trim' && isNum(d.shNow) && isNum(d.shAfter) && d.shAfter >= d.shNow) { Object.assign(d, old); toast('Shares after should be fewer than shares held'); return; }
+  if (d.type === 'hold') d.shAfter = d.shNow;
+  if (HELD.includes(d.type) || d.type === 'sell') set('kind', efKind || d.kind);
+  const side = SIDE[d.type];
+  if (side === 'out' || side === 'hold') {
+    const X = derive(d);
+    if (isNum(X.dn)) d.dn = X.dn;
+    if (portVal()) d.size = d.type === 'sell' ? 0 : (isNum(X.size) ? X.size : d.size);
+  }
+  (d.tranches || []).forEach((t, i) => { if (t.st) return; const v = g('tr' + i); if (v && v !== t.date) { t.date = v; changed.push('step ' + t.n + ' date'); } });
+  if ((changed.includes('shNow') || changed.includes('shAfter')) && d.tranches && !d.tranches.some((t) => t.st)) stepShares(d);
+  const am = g('amend');
+  if (!changed.length && !am) { toast('Nothing changed'); return; }
+  const at = new Date().toISOString();
+  if (am) (d.amend = d.amend || []).push({ at, t: am });
+  if (changed.length) (d.edits = d.edits || []).push({ at, kind: 'facts', changed });
+  save(); editId = ''; efKind = ''; view = 'review'; render(); window.scrollTo(0, 0);
+  toast(changed.length ? (am ? 'Corrections and amendment saved' : 'Corrections saved') : 'Amendment added');
 }
 
 /* ---------- Book ---------- */
@@ -1000,7 +1107,7 @@ function holdCard(d) {
       return '<div class="when">Sale plan: ' + dn + ' of ' + d.tranches.length + ' steps done' + (sk ? ', ' + sk + ' skipped' : '') + (nx ? ', next ' + nice(nx.date) : '') + '</div>'; })() : '') +
     (d.back ? '<div class="when">Way back in: ' + esc(d.back) + '</div>' : '') +
     '<div class="when">Last decided ' + nice(d.date) + ' (' + plural(age, 'day') + ' ago)</div>' +
-    '<div class="actions"><button class="btn sm ghost" data-act="recheck" data-k="' + d.id + '">Re-check thesis</button><button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">' + (sizeFit(d) === 'over' || FAM[d.fw] === 'down' ? 'Log a trim' : 'Log a trade') + '</button></div></div>';
+    '<div class="actions"><button class="btn sm ghost" data-act="recheck" data-k="' + d.id + '">Re-check thesis</button><button class="btn sm ghost" data-act="trade" data-k="' + d.id + '">' + (sizeFit(d) === 'over' || FAM[d.fw] === 'down' ? 'Log a trim' : 'Log a trade') + '</button><button class="btn sm ghost" data-act="edit" data-k="' + d.id + '">' + (canFullEdit(d) ? 'Edit' : 'Correct facts') + '</button></div></div>';
 }
 function vBook() {
   const hs = holdings().sort((a, b) => (num(b.size) || 0) - (num(a.size) || 0)), ws = watching();
@@ -1060,7 +1167,7 @@ function vReview() {
     h += '<h3 class="sec">All decisions (' + all.length + ')</h3>' + all.map((d) => {
       const cls = d.status === 'cooling' ? 'warn' : d.status === 'dropped' ? '' : 'info';
       return '<details class="card"><summary><span class="chip ' + cls + '">' + T(d.type).t + '</span><b>' + esc(d.tk) + '</b><span class="when">' + nice(d.date) + (d.status !== 'done' ? ' · ' + d.status : '') + (d.override ? ' · cool-off overridden' : '') + '</span></summary>' + detailHtml(d) +
-        '<div class="actions"><button class="btn sm ghost" data-act="del" data-k="' + d.id + '">Delete</button></div></details>';
+        '<div class="actions"><button class="btn sm ghost" data-act="edit" data-k="' + d.id + '">' + (canFullEdit(d) ? 'Edit' : 'Correct facts') + '</button><button class="btn sm ghost" data-act="del" data-k="' + d.id + '">Delete</button></div></details>';
     }).join('');
   }
   return h;
@@ -1078,6 +1185,8 @@ function detailHtml(d) {
   add('Why sell', (d.why || []).map((w) => (SELLWHY.find((x) => x.id === w) || {}).t).join(', '));
   add('Planned', d.planned === 'yes' ? 'Yes' : d.planned === 'no' ? 'No' : ''); add('Framework', d.fw ? d.fw + (d.fwWhy ? ': ' + d.fwWhy : '') : '');
   add('Felt', emoNames(d.emo)); add('Flags', (d.flags || []).join(' '));
+  (d.amend || []).forEach((a) => add('Amendment, ' + nice(ds(new Date(a.at))), a.t));
+  if ((d.edits || []).length) add('Edited', d.edits.map((e) => nice(ds(new Date(e.at))) + (e.kind === 'full' ? ' (within 24 hours)' : ': ' + (e.changed || []).join(', '))).join(' \u00b7 '));
   Object.keys(d.cps || {}).sort((a, b) => a - b).forEach((n) => {
     const cp = d.cps[n], e = edge(d, cp);
     add(n + '-day', [cp.th ? 'thesis ' + cp.th : '', cp.pr ? cp.pr + ' process' : '', isNum(e) ? 'edge ' + pct(e) : '', (cp.tags || []).map((t) => (TAGS.find((x) => x.id === t) || {}).t).join(', '), cp.note].filter(Boolean).join(' · '));
@@ -1484,7 +1593,11 @@ document.addEventListener('click', (e) => {
   if (a === 'ftog') { const arr = draft[k] = draft[k] || []; const i = arr.indexOf(v); if (i >= 0) arr.splice(i, 1); else arr.push(v); keepDraft(); render(); return; }
   if (a === 'fpre') { draft.pre = draft.pre || {}; draft.pre[k] = !draft.pre[k]; keepDraft(); el.classList.toggle('done', !!draft.pre[k]); $('#warn').innerHTML = warnHtml(); return; }
   if (a === 'submit') { submit(); return; }
-  if (a === 'fclear') { if (!confirm('Clear this form?')) return; draft = newDraft(); localStorage.removeItem(DRAFT); render(); return; }
+  if (a === 'fclear') {
+    const editing = !!draft.editId;
+    if (!confirm(editing ? 'Cancel this edit? The decision stays as it was.' : 'Clear this form?')) return;
+    draft = newDraft(); localStorage.removeItem(DRAFT); if (editing) view = 'review'; render(); return;
+  }
   if (a === 'recheck' || a === 'trade') {
     const d = D.decisions[k]; if (!d) return;
     const v0 = (x) => (x == null ? '' : x), sh = d.shAfter != null ? d.shAfter : d.shNow;
@@ -1510,6 +1623,9 @@ document.addEventListener('click', (e) => {
     }
     delete RV[k]; save(); render(); toast('Review saved'); return;
   }
+  if (a === 'edit') { startEdit(k); return; }
+  if (a === 'efkind') { efKind = v; el.parentNode.querySelectorAll('button').forEach((b) => b.classList.toggle('on', b === el)); return; }
+  if (a === 'efsave') { saveFacts(k); return; }
   if (a === 'del') { const d = D.decisions[k]; if (!d || !confirm('Delete ' + T(d.type).t + ' ' + d.tk + ' from ' + nice(d.date) + '? This cannot be undone.')) return; delete D.decisions[k]; D.deleted[k] = new Date().toISOString(); save(); render(); toast('Deleted'); return; }
   if (a === 'coff') { (D.cards[k] = D.cards[k] || {}).off = true; save(); render(); return; }
   if (a === 'con') { if (D.cards[k]) delete D.cards[k].off; save(); render(); return; }
